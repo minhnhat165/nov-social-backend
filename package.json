@@ -1,7 +1,7 @@
 {
-	"name": "structure-api-mvc-express-nodejs",
+	"name": "nov-social",
 	"version": "1.0.0",
-	"description": "structure api mvc express nodejs",
+	"description": "social network backend api",
 	"main": "index.js",
 	"directories": {
 		"doc": "docs"
@@ -11,7 +11,7 @@
 		"dev": "nodemon server.js"
 	},
 	"keywords": [],
-	"author": "anonystick <anonystick@gmail.com>",
+	"author": "MinhNhat165<nguyenminhnhat301101@gmail.com>",
 	"license": "ISC",
 	"dependencies": {
 		"compression": "^1.7.4",
