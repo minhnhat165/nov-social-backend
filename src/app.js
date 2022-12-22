@@ -6,6 +6,7 @@ const compression = require('compression');
 // const mongoose = require('./v1/databases/init.mongodb');
 
 // init dbs
+// mongoose();
 require('./v1/databases/init.mongodb');
 // require('./v1/databases/init.redis')
 

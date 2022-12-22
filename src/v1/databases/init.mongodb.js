@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+//set mongoose promise to global promise
+mongoose.set('strictQuery', false);
+
 //connect mongoose
 mongoose
 	.connect(process.env.MONGO_URI)
