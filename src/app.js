@@ -1,14 +1,27 @@
 const express = require('express');
 const app = express();
+const fs = require('fs');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
-// const mongoose = require('./v1/databases/init.mongodb');
-
-// init dbs
-// mongoose();
+const cors = require('cors');
+const passport = require('passport');
+const authRouter = require('./v1/routes/auth.route');
+const userRouter = require('./v1/routes/user.route');
+const searchRouter = require('./v1/routes/search.route');
+const { CLIENT_URL } = require('./v1/configs');
+var cookies = require('cookie-parser');
 require('./v1/databases/init.mongodb');
-// require('./v1/databases/init.redis')
+// add cors
+app.use(
+	cors({
+		origin: CLIENT_URL,
+		credentials: true,
+		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+		allowedHeaders: ['Content-Type', 'Authorization'],
+	})
+);
+app.use(cookies());
 
 //user middleware
 app.use(helmet());
@@ -23,9 +36,13 @@ app.use(
 		extended: true,
 	})
 );
+// add passport
+app.use(passport.initialize());
 
 //router
-app.use(require('./v1/routes/index.router'));
+app.use('/api/auth', authRouter);
+app.use('/api/users', userRouter);
+app.use('/api/search', searchRouter);
 
 // Error Handling Middleware called
 
@@ -38,10 +55,8 @@ app.use((req, res, next) => {
 // error handler middleware
 app.use((error, req, res, next) => {
 	res.status(error.status || 500).send({
-		error: {
-			status: error.status || 500,
-			message: error.message || 'Internal Server Error',
-		},
+		status: error.status || 500,
+		message: error.message || 'Internal Server Error',
 	});
 });
 
