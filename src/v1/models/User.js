@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
 const bcrypt = require('bcryptjs');
+const { getImageWithDimension } = require('../services/cloud.service');
+const { AVATAR_SIZE, COVER_SIZE } = require('../configs');
 
 const UserSchema = new Schema(
 	{
@@ -50,7 +52,13 @@ const UserSchema = new Schema(
 		avatar: {
 			type: String,
 		},
+		avatarId: {
+			type: String,
+		},
 		cover: {
+			type: String,
+		},
+		coverId: {
 			type: String,
 		},
 		dateOfBirth: {
@@ -90,7 +98,7 @@ const UserSchema = new Schema(
 			},
 		],
 	},
-	{ timestamps: true }
+	{ timestamps: true },
 );
 
 UserSchema.index({ email: 1, provider: 1 }, { unique: true });
@@ -102,7 +110,7 @@ UserSchema.index(
 	{
 		expireAfterSeconds: 60 * 60 * 24,
 		partialFilterExpression: { status: 'pending' },
-	}
+	},
 );
 
 UserSchema.methods.isValidPassword = async function (password) {
@@ -114,6 +122,22 @@ UserSchema.methods.isValidPassword = async function (password) {
 };
 
 UserSchema.pre('save', async function (next) {
+	if (this.isModified('avatarId')) {
+		this.avatar = getImageWithDimension(
+			this.avatarId,
+			AVATAR_SIZE.SMALL,
+			AVATAR_SIZE.SMALL,
+		);
+	}
+
+	if (this.isModified('coverId')) {
+		this.cover = getImageWithDimension(
+			this.coverId,
+			COVER_SIZE.MEDIUM.WIDTH,
+			COVER_SIZE.MEDIUM.HEIGHT,
+		);
+	}
+
 	if (!this.isModified('password') || this.provider !== 'local')
 		return next();
 	try {
