@@ -16,19 +16,25 @@ router.get('/', searchController.search);
 router.get(
 	'/log',
 	passport.authenticate('jwt', { session: false }),
-	searchController.getSearchLog
+	searchController.getSearchLog,
 );
 
 router.post(
 	'/log',
 	passport.authenticate('jwt', { session: false }),
-	searchController.updateSearchLog
+	searchController.updateSearchLog,
 );
 
 router.delete(
 	'/log/:searchId',
 	passport.authenticate('jwt', { session: false }),
-	searchController.deleteSearchLog
+	searchController.deleteSearchLog,
+);
+
+router.get(
+	'/interest',
+	passport.authenticate('jwt', { session: false }),
+	searchController.searchInterest,
 );
 
 module.exports = router;

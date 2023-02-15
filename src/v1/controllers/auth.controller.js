@@ -33,7 +33,7 @@ const addExistingAccount = async (req, res, next) => {
 	const newUser = await authService.addExistingAccount(user, account);
 	await newUser.populate(
 		'linkedAccounts',
-		'_id name avatar email notificationsCount'
+		'_id name avatar email notificationsCount',
 	);
 	return res.status(200).json({
 		success: true,
@@ -55,7 +55,7 @@ const removeLinkedAccount = async (req, res, next) => {
 
 	await newUser.populate(
 		'linkedAccounts',
-		'_id name avatar email notificationsCount'
+		'_id name avatar email notificationsCount',
 	);
 	return res.status(200).json({
 		success: true,
@@ -121,7 +121,7 @@ const activeAccount = async (req, res, next) => {
 	// check if token is expired
 	if (exp < Date.now().valueOf() / 1000)
 		throw createError.Unauthorized(
-			'Account activation expired, please re-register'
+			'Account activation expired, please re-register',
 		);
 
 	// find user by id
@@ -137,7 +137,9 @@ const activeAccount = async (req, res, next) => {
 const getOwnProfile = async (req, res, next) => {
 	const { user: userReq } = req;
 	const user = await User.findById(userReq.id)
-		.select('name email avatar notificationsCount linkedAccounts')
+		.select(
+			'name lastName email avatar notificationsCount linkedAccounts following',
+		)
 		.populate('linkedAccounts', 'name email avatar notificationsCount');
 	return res.status(200).json({
 		user,
@@ -147,11 +149,11 @@ const getOwnProfile = async (req, res, next) => {
 const forgotPassword = async (req, res) => {
 	const { email } = req.body;
 	const user = await User.findOne({ email, provider: 'local' }).select(
-		'_id email'
+		'_id email',
 	);
 	if (!user)
 		throw createError.NotFound(
-			'This email does not exist or this account is not provided by us'
+			'This email does not exist or this account is not provided by us',
 		);
 
 	const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -175,7 +177,7 @@ const verifyOTP = async (req, res) => {
 	const check = await bcrypt.compare(otp, dbOtp.otp);
 	if (!check) throw createError.Unauthorized('OTP is incorrect');
 	const user = await User.findOne({ email, provider: 'local' }).select(
-		'_id email'
+		'_id email',
 	);
 	if (!user) throw createError.NotFound('User does not exist');
 	const verifyToken = generateVerifyToken(user);
@@ -189,7 +191,7 @@ const updatePassword = async (req, res) => {
 	// check if token is expired
 	if (exp < Date.now().valueOf() / 1000)
 		throw createError.Unauthorized(
-			"Token is expired, please re-send 'forgot password'"
+			"Token is expired, please re-send 'forgot password'",
 		);
 	// find user by id
 	const user = await User.findById(id).select('password');
@@ -205,7 +207,7 @@ const refreshToken = async (req, res, next) => {
 	const decoded = jwt.verify(refresh_token, process.env.REFRESH_TOKEN_SECRET);
 	if (decoded.exp < Date.now().valueOf() / 1000)
 		throw createError.Unauthorized(
-			'Refresh token is expired, please login again'
+			'Refresh token is expired, please login again',
 		);
 	const user = await User.findById(decoded.id).select('_id email');
 	if (!user) throw createError.NotFound('User not found');

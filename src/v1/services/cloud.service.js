@@ -1,6 +1,5 @@
 const { cloudinary_js_config } = require('../configs/cloudinary.config');
 const fs = require('fs');
-const path = require('path');
 
 const uploadImageBuffer = async (file, path) => {
 	let tempPath = '';
@@ -35,6 +34,7 @@ const getPublicId = (imageURL) => {
 	return imageURL.split('/').slice(7).join('/').split('.')[0];
 };
 const deleteImage = async (publicId) => {
+	console.log('publicId deleted', publicId);
 	if (!publicId) return null;
 	try {
 		return await cloudinary_js_config.uploader.destroy(publicId);

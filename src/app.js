@@ -1,6 +1,5 @@
 const express = require('express');
 const app = express();
-const fs = require('fs');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
@@ -9,9 +8,12 @@ const passport = require('passport');
 const authRouter = require('./v1/routes/auth.route');
 const userRouter = require('./v1/routes/user.route');
 const searchRouter = require('./v1/routes/search.route');
+const interestRouter = require('./v1/routes/interest.route');
 const { CLIENT_URL } = require('./v1/configs');
 var cookies = require('cookie-parser');
+
 require('./v1/databases/init.mongodb');
+
 // add cors
 app.use(
 	cors({
@@ -19,7 +21,7 @@ app.use(
 		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
-	})
+	}),
 );
 app.use(cookies());
 
@@ -34,7 +36,7 @@ app.use(express.json());
 app.use(
 	express.urlencoded({
 		extended: true,
-	})
+	}),
 );
 // add passport
 app.use(passport.initialize());
@@ -43,6 +45,7 @@ app.use(passport.initialize());
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/interests', interestRouter);
 
 // Error Handling Middleware called
 

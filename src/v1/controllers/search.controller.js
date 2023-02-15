@@ -1,3 +1,5 @@
+const Interest = require('../models/Interest');
+const InterestCategory = require('../models/InterestCategory');
 const Search = require('../models/Search');
 const SearchLog = require('../models/SearchLog');
 const User = require('../models/User');
@@ -111,11 +113,35 @@ const deleteSearchLog = async (req, res) => {
 	});
 };
 
+const searchInterest = async (req, res) => {
+	const { q, limit = 10, category } = req.query;
+	const newQuery = escapeRegex(q);
+	if (!q) return res.status(200).json({ result: [] });
+	let categoryId;
+	if (category) {
+		const categoryFind = await InterestCategory.findOne({
+			slug: category,
+		}).select('_id');
+		if (!categoryFind) return res.status(200).json({ result: [] });
+		categoryId = categoryFind._id;
+	}
+	// if have category then search in categories filed of Interest model
+
+	const result = await Interest.find({
+		name: { $regex: newQuery, $options: 'i' },
+		...(category && { categories: categoryId }),
+	})
+		.limit(limit)
+		.select('_id name icon slug');
+	res.status(200).json({ result });
+};
+
 const searchController = {
 	search,
 	updateSearchLog,
 	getSearchLog,
 	deleteSearchLog,
+	searchInterest,
 };
 
 module.exports = searchController;

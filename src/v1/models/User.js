@@ -16,6 +16,7 @@ const UserSchema = new Schema(
 		},
 		password: {
 			type: String,
+			select: false,
 		},
 		status: {
 			type: String,
@@ -30,6 +31,11 @@ const UserSchema = new Schema(
 			type: String,
 			enum: ['local', 'google', 'facebook', 'twitter'],
 			default: 'local',
+		},
+		username: {
+			type: String,
+			trim: true,
+			unique: true,
 		},
 		name: {
 			type: String,
@@ -61,6 +67,10 @@ const UserSchema = new Schema(
 		coverId: {
 			type: String,
 		},
+		photos: {
+			type: [String],
+			default: [],
+		},
 		dateOfBirth: {
 			type: Date,
 		},
@@ -70,26 +80,24 @@ const UserSchema = new Schema(
 			maxLength: 160,
 		},
 
-		address: { type: String, default: '' },
-		homeTown: { type: String, default: '' },
-		phoneNumber: { type: String, default: '' },
+		address: { type: String },
+		homeTown: { type: String },
+		phoneNumber: { type: String, public: false },
 		gender: {
 			type: String,
 			enum: ['male', 'female', 'other'],
 			default: 'male',
 		},
-		followers: [
-			{
-				type: mongoose.Types.ObjectId,
-				ref: 'user',
-			},
-		],
-		following: [
-			{
-				type: mongoose.Types.ObjectId,
-				ref: 'user',
-			},
-		],
+		followers: {
+			type: [mongoose.Types.ObjectId],
+			default: [],
+			ref: 'user',
+		},
+		following: {
+			type: [mongoose.Types.ObjectId],
+			default: [],
+			ref: 'user',
+		},
 		notificationsCount: { type: Number, default: 0 },
 		linkedAccounts: [
 			{
@@ -97,6 +105,16 @@ const UserSchema = new Schema(
 				ref: 'user',
 			},
 		],
+		interests: [
+			{
+				type: mongoose.Types.ObjectId,
+				ref: 'Interest',
+			},
+		],
+		profilePrivate: {
+			type: [String],
+			default: [],
+		},
 	},
 	{ timestamps: true },
 );
@@ -121,23 +139,13 @@ UserSchema.methods.isValidPassword = async function (password) {
 	}
 };
 
+UserSchema.methods.toJSON = function () {
+	const obj = this.toObject();
+	delete obj.password; // This removes the password from the API response
+	return obj;
+};
+
 UserSchema.pre('save', async function (next) {
-	if (this.isModified('avatarId')) {
-		this.avatar = getImageWithDimension(
-			this.avatarId,
-			AVATAR_SIZE.SMALL,
-			AVATAR_SIZE.SMALL,
-		);
-	}
-
-	if (this.isModified('coverId')) {
-		this.cover = getImageWithDimension(
-			this.coverId,
-			COVER_SIZE.MEDIUM.WIDTH,
-			COVER_SIZE.MEDIUM.HEIGHT,
-		);
-	}
-
 	if (!this.isModified('password') || this.provider !== 'local')
 		return next();
 	try {
@@ -148,6 +156,26 @@ UserSchema.pre('save', async function (next) {
 	} catch (e) {
 		next(e);
 	}
+});
+
+UserSchema.pre('findOneAndUpdate', async function (next) {
+	const { _update } = this;
+	if (_update.avatarId) {
+		this._update.avatar = getImageWithDimension(
+			this._update.avatarId,
+			AVATAR_SIZE.SMALL,
+			AVATAR_SIZE.SMALL,
+		);
+	}
+
+	if (_update.coverId) {
+		_update.cover = getImageWithDimension(
+			this._update.coverId,
+			COVER_SIZE.MEDIUM.WIDTH,
+			COVER_SIZE.MEDIUM.HEIGHT,
+		);
+	}
+	next();
 });
 
 module.exports = mongoose.model('user', UserSchema);
