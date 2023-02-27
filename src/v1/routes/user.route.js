@@ -52,4 +52,8 @@ router.get(
 	userController.getPhotos,
 );
 
+router.get('/search', userController.searchUser);
+
+router.get('/mentions', userController.getMentions);
+
 module.exports = router;

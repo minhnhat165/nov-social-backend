@@ -179,11 +179,56 @@ const unFollowUser = async (req, res, next) => {
 
 const getPhotos = async (req, res, next) => {
 	const { userId } = req.value.params;
-	const { page, limit } = req.query;
+	const { page = 1, limit = 5 } = req.q;
 	const { photos } = await User.findById(userId).select('photos');
 	return res.status(200).json({
 		status: 'success',
 		photos,
+	});
+};
+
+const searchUser = async (req, res, next) => {
+	const { q, page, limit } = req.query;
+	const users = await User.find({
+		$or: [
+			{ username: { $regex: q, $options: 'i' } },
+			{ name: { $regex: q, $options: 'i' } },
+		],
+	})
+		.select('username name avatarId')
+		.limit(limit * 1)
+		.skip((page - 1) * limit)
+		.exec();
+	const count = await User.countDocuments({
+		$or: [
+			{ username: { $regex: q, $options: 'i' } },
+			{ name: { $regex: q, $options: 'i' } },
+		],
+	});
+	return res.status(200).json({
+		status: 'success',
+		data: {
+			users,
+			count,
+		},
+	});
+};
+
+const getMentions = async (req, res, next) => {
+	const { q } = req.query;
+	const users = await User.find({
+		$or: [
+			{ username: { $regex: q, $options: 'i' } },
+			{ name: { $regex: q, $options: 'i' } },
+		],
+	})
+
+		.select('username name avatar')
+		.limit(5)
+		.exec();
+	return res.status(200).json({
+		status: 'success',
+		mentions: users,
 	});
 };
 
@@ -194,4 +239,6 @@ module.exports = {
 	followUser,
 	unFollowUser,
 	getPhotos,
+	searchUser,
+	getMentions,
 };
