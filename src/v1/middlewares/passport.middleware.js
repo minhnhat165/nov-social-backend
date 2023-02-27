@@ -42,8 +42,8 @@ passport.use(
 			} catch (e) {
 				done(e, false, e.message);
 			}
-		}
-	)
+		},
+	),
 );
 
 // passport facebook token strategy config
@@ -80,8 +80,8 @@ passport.use(
 			} catch (e) {
 				done(e, false, e.message);
 			}
-		}
-	)
+		},
+	),
 );
 
 // passport config
@@ -94,7 +94,10 @@ passport.use(
 		},
 		async (payload, done) => {
 			try {
-				const user = await User.findById(payload.id, '_id email name');
+				const user = await User.findById(
+					payload.id,
+					'_id email name avatar',
+				);
 				if (!user) {
 					return done(null, false);
 				}
@@ -102,8 +105,8 @@ passport.use(
 			} catch (error) {
 				done(error, false);
 			}
-		}
-	)
+		},
+	),
 );
 
 //passport local strategy config
@@ -137,8 +140,8 @@ passport.use(
 			} catch (error) {
 				done(error, false);
 			}
-		}
-	)
+		},
+	),
 );
 
 passport.use(
@@ -168,8 +171,8 @@ passport.use(
 			} catch (e) {
 				cb(e, false, e.message);
 			}
-		}
-	)
+		},
+	),
 );
 
 //passport facebook strategy config
