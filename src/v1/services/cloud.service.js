@@ -43,9 +43,19 @@ const deleteImage = async (publicId) => {
 	}
 };
 
+const deleteImages = async (publicIds) => {
+	if (!publicIds) return null;
+	try {
+		return await cloudinary_js_config.api.delete_resources(publicIds);
+	} catch (error) {
+		console.log(error);
+	}
+};
+
 module.exports = {
 	uploadImageBuffer,
 	deleteImage,
 	getImageWithDimension,
 	getOriginalImage,
+	deleteImages,
 };
