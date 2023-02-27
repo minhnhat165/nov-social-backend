@@ -9,6 +9,7 @@ const authRouter = require('./v1/routes/auth.route');
 const userRouter = require('./v1/routes/user.route');
 const searchRouter = require('./v1/routes/search.route');
 const interestRouter = require('./v1/routes/interest.route');
+const postRouter = require('./v1/routes/post.route');
 const { CLIENT_URL } = require('./v1/configs');
 var cookies = require('cookie-parser');
 
@@ -45,6 +46,7 @@ app.use(passport.initialize());
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/posts', postRouter);
 app.use('/api/interests', interestRouter);
 
 // Error Handling Middleware called
