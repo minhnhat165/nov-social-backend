@@ -34,7 +34,14 @@ const createPost = async (post, user) => {
 };
 
 const updatePost = async (postId, post, user) => {
-	const { content, photos, hashtags: hashtagNames, mentions, poll } = post;
+	const {
+		content,
+		photos,
+		hashtags: hashtagNames,
+		mentions,
+		poll,
+		visibility,
+	} = post;
 	const { _id } = user;
 	let dataUpdate = {};
 	const updatePost = await Post.findById(postId);
@@ -66,7 +73,7 @@ const updatePost = async (postId, post, user) => {
 	}
 
 	if (content) dataUpdate.content = content;
-
+	if (visibility) dataUpdate.visibility = visibility;
 	if (photos) {
 		const oldPhotoIds = updatePost.photos.map((photo) => photo.publicId);
 		const newPhotoIds = photos.map((photo) => photo.publicId);
