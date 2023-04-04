@@ -6,9 +6,11 @@ const {
 	deleteImage,
 	getImageWithDimension,
 } = require('../services/cloud.service');
+const userService = require('../services/user.service');
 
 const getProfile = async (req, res, next) => {
 	const { userId } = req.value.params;
+	const { user: userReq } = req;
 	const user = await User.findById(userId).populate('interests');
 	if (!user) throw createHttpError.NotFound('User not found');
 	const profile = {};
@@ -31,7 +33,10 @@ const getProfile = async (req, res, next) => {
 			AVATAR_SIZE.MEDIUM,
 			AVATAR_SIZE.MEDIUM,
 		);
-	return res.status(200).json({ success: true, profile });
+	return res.status(200).json({
+		status: 'success',
+		profile: userService.retrieveUserSendToClient(profile, userReq?._id),
+	});
 };
 
 const getOwnProfile = async (req, res, next) => {
@@ -142,38 +147,19 @@ const updateProfile = async (req, res, next) => {
 
 const followUser = async (req, res, next) => {
 	const { user } = req;
-	const { userId } = req.value.params;
-	await User.updateOne(
-		{ _id: user._id },
-		{ $addToSet: { following: userId } },
-	);
-
-	await Promise.all([
-		User.updateOne({ _id: user._id }, { $addToSet: { following: userId } }),
-		User.updateOne({ _id: userId }, { $addToSet: { followers: user._id } }),
-	]);
-
+	const { userId: followId } = req.value.params;
+	await userService.followUser(user._id, followId);
 	return res.status(200).json({
 		status: 'success',
-		data: {
-			message: 'Follow user successfully',
-		},
 	});
 };
 
 const unFollowUser = async (req, res, next) => {
 	const { user } = req;
-	const { userId } = req.value.params;
-	await Promise.all([
-		User.updateOne({ _id: user._id }, { $pull: { following: userId } }),
-		User.updateOne({ _id: userId }, { $pull: { followers: user._id } }),
-	]);
-
+	const { userId: followId } = req.value.params;
+	await userService.unFollowUser(user._id, followId);
 	return res.status(200).json({
 		status: 'success',
-		data: {
-			message: 'UnFollow user successfully',
-		},
 	});
 };
 
