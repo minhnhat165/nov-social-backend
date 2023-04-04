@@ -8,6 +8,8 @@ const passport = require('passport');
 
 const userController = require('../controllers/user.controller');
 const { upload } = require('../middlewares/upload.middleware');
+const { getUserFromJwt } = require('../middlewares/user.middleware');
+const { verifyAccessTokenOptional } = require('../middlewares/jwt.middleware');
 
 const router = require('express-promise-router')();
 
@@ -19,6 +21,7 @@ router.get(
 router.get(
 	'/profile/:userId',
 	validateParams(schemas.idSchema, 'userId'),
+	verifyAccessTokenOptional,
 	userController.getProfile,
 );
 router.patch(

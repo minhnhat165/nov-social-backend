@@ -28,4 +28,16 @@ router.patch(
 	PostController.updatePost,
 );
 
+router.patch(
+	'/:id/like',
+	passport.authenticate('jwt', { session: false }),
+	PostController.likePost,
+);
+
+router.patch(
+	'/:id/unlike',
+	passport.authenticate('jwt', { session: false }),
+	PostController.unlikePost,
+);
+
 module.exports = router;
