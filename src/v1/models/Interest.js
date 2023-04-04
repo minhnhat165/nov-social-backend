@@ -28,7 +28,7 @@ InterestSchema.pre('save', async function (next) {
 	this.slug = this.name.toLowerCase().replace(/ /g, '-');
 	next();
 });
-
+InterestSchema.index({ categories: 1 });
 const Interest = mongoose.model('Interest', InterestSchema);
 
 module.exports = Interest;

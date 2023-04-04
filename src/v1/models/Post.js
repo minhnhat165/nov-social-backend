@@ -107,4 +107,7 @@ const PostSchema = new mongoose.Schema(
 
 const Post = mongoose.model('post', PostSchema);
 
+// create index user field for faster search
+PostSchema.index({ author: 1 });
+
 module.exports = Post;
