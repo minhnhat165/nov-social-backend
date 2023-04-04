@@ -16,6 +16,24 @@ const verifyAccessToken = async (req, res, next) => {
 	}
 };
 
+const verifyAccessTokenOptional = async (req, res, next) => {
+	const authHeader = req.headers.authorization;
+	if (!authHeader) {
+		req.user = null;
+		return next();
+	}
+	const token = authHeader.split(' ')[1];
+	try {
+		const payload = await authService.verifyAccessToken(token);
+		const user = await userService.getUser(payload.id);
+		req.user = user;
+		next();
+	} catch (error) {
+		next(error);
+	}
+};
+
 module.exports = {
 	verifyAccessToken,
+	verifyAccessTokenOptional,
 };
