@@ -8,12 +8,16 @@ const passport = require('passport');
 const authRouter = require('./v1/routes/auth.route');
 const userRouter = require('./v1/routes/user.route');
 const searchRouter = require('./v1/routes/search.route');
+const feedRouter = require('./v1/routes/feed.route');
 const interestRouter = require('./v1/routes/interest.route');
 const postRouter = require('./v1/routes/post.route');
 const { CLIENT_URL } = require('./v1/configs');
 var cookies = require('cookie-parser');
+const client = require('./v1/databases/init.redis');
+const redis = require('./v1/databases/init.redis');
 
 require('./v1/databases/init.mongodb');
+require('./v1/databases/init.redis');
 
 // add cors
 app.use(
@@ -48,7 +52,13 @@ app.use('/api/users', userRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/posts', postRouter);
 app.use('/api/interests', interestRouter);
-
+app.use('/api/feed', feedRouter);
+// test redis
+app.post('/', async (req, res) => {
+	await redis.set('key', 'value');
+	const value = await client.get('key');
+	res.send(value);
+});
 // Error Handling Middleware called
 
 app.use((req, res, next) => {
