@@ -137,9 +137,7 @@ const activeAccount = async (req, res, next) => {
 const getOwnProfile = async (req, res, next) => {
 	const { user: userReq } = req;
 	const user = await User.findById(userReq.id)
-		.select(
-			'name lastName email avatar notificationsCount linkedAccounts following',
-		)
+		.select('name lastName email avatar notificationsCount linkedAccounts')
 		.populate('linkedAccounts', 'name email avatar notificationsCount');
 	return res.status(200).json({
 		user,
