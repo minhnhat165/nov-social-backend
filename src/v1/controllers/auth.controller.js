@@ -11,6 +11,8 @@ const {
 	generateEmailResetPassword,
 	generateEmailVerify,
 } = require('../views/email');
+const { getImageWithDimension } = require('../services/cloud.service');
+const { AVATAR_SIZE } = require('../configs');
 
 const login = async (req, res, next) => {
 	const { email, password } = req.value.body;
@@ -31,10 +33,6 @@ const addExistingAccountLocal = async (req, res, next) => {
 const addExistingAccount = async (req, res, next) => {
 	const { user, account } = req;
 	const newUser = await authService.addExistingAccount(user, account);
-	await newUser.populate(
-		'linkedAccounts',
-		'_id name avatar email notificationsCount',
-	);
 	return res.status(200).json({
 		success: true,
 		linkedAccounts: newUser.linkedAccounts,
@@ -53,13 +51,9 @@ const removeLinkedAccount = async (req, res, next) => {
 	const { userId: accountId } = params;
 	const newUser = await authService.removeLinkedAccount(user, accountId);
 
-	await newUser.populate(
-		'linkedAccounts',
-		'_id name avatar email notificationsCount',
-	);
 	return res.status(200).json({
 		success: true,
-		linkedAccounts: user.linkedAccounts,
+		linkedAccounts: newUser.linkedAccounts,
 	});
 };
 
@@ -97,9 +91,15 @@ const checkEmailExists = async (req, res, next) => {
 };
 
 const register = async (req, res, next) => {
-	const userData = req.value.body;
+	const { avatar, ...userData } = req.value.body;
 	const newUser = await createUser({
 		...userData,
+		avatar: getImageWithDimension(
+			avatar,
+			AVATAR_SIZE.MEDIUM,
+			AVATAR_SIZE.MEDIUM,
+		),
+		avatarId: avatar,
 		provider: 'local',
 	});
 	const verifyToken = generateVerifyToken(newUser);
@@ -130,15 +130,23 @@ const activeAccount = async (req, res, next) => {
 	if (user.status === 'active')
 		throw createError.Conflict('Account is already active');
 	user.status = 'active';
-	await user.save();
+	await User.findByIdAndUpdate(id, {
+		status: 'active',
+	});
 	return res.status(200).json({ success: true });
 };
 
 const getOwnProfile = async (req, res, next) => {
 	const { user: userReq } = req;
 	const user = await User.findById(userReq.id)
-		.select('name lastName email avatar notificationsCount linkedAccounts')
-		.populate('linkedAccounts', 'name email avatar notificationsCount');
+		.select(
+			'name username lastName email avatar notificationsCount linkedAccounts',
+		)
+		.populate(
+			'linkedAccounts',
+			'name username email avatar notificationsCount',
+		)
+		.lean();
 	return res.status(200).json({
 		user,
 	});

@@ -9,7 +9,7 @@ const { MAX_LINKED_ACCOUNT } = require('../configs');
 
 const login = async (email, password) => {
 	const user = await User.findOne({ email, provider: 'local' }).select(
-		'email password status provider'
+		'email password status provider',
 	);
 	if (!user) throw createError.NotFound('User not found');
 	if (user.status === 'pending')
@@ -33,7 +33,7 @@ const addExistingAccount = async (user, account) => {
 	Object.assign(user, await User.findById(user._id).select('linkedAccounts'));
 	Object.assign(
 		account,
-		await User.findById(account._id).select('linkedAccounts')
+		await User.findById(account._id).select('linkedAccounts'),
 	);
 
 	// Check if the user is trying to link themselves
@@ -47,23 +47,36 @@ const addExistingAccount = async (user, account) => {
 	// Check if the account is at the max number of linked accounts
 	if (account.linkedAccounts.length >= MAX_LINKED_ACCOUNT)
 		throw createError.BadRequest(
-			'This account has reached the maximum number of linked accounts'
+			'This account has reached the maximum number of linked accounts',
 		);
 
 	// Check if the user is at the max number of linked accounts
 	if (user.linkedAccounts.length >= MAX_LINKED_ACCOUNT)
 		throw createError.BadRequest(
-			'You have reached the maximum number of linked accounts'
+			'You have reached the maximum number of linked accounts',
 		);
 
-	await User.updateOne(
-		{ _id: account._id },
-		{ $addToSet: { linkedAccounts: user._id } }
-	);
+	const [newUser, newUserLink] = await Promise.all([
+		User.findByIdAndUpdate(
+			user._id,
+			{
+				$addToSet: { linkedAccounts: account._id },
+			},
+			{
+				new: true,
+			},
+		)
+			.select('linkedAccounts')
+			.populate(
+				'linkedAccounts',
+				'_id name avatar username email notificationsCount',
+			),
+		User.findByIdAndUpdate(account._id, {
+			$addToSet: { linkedAccounts: user._id },
+		}),
+	]);
 
-	user.linkedAccounts.push(account._id);
-	await user.save();
-	return user;
+	return newUser;
 };
 
 const removeLinkedAccount = async (user, accountId) => {
@@ -72,7 +85,7 @@ const removeLinkedAccount = async (user, accountId) => {
 
 	// Get all linked accounts from an account
 	const { linkedAccounts: accountLinkedAccounts } = await User.findById(
-		accountId
+		accountId,
 	).select('linkedAccounts');
 
 	// Check if the account is linked
@@ -85,20 +98,26 @@ const removeLinkedAccount = async (user, accountId) => {
 	if (!accountLinkedAccounts.includes(user._id))
 		throw createError.Conflict('This account is not linked');
 
-	// Remove the user from the account
-	await User.updateOne(
-		{
-			_id: accountId,
-		},
-		{ $pull: { linkedAccounts: user._id } }
-	);
-
-	// Remove the account from the user
-	user.linkedAccounts = user.linkedAccounts.filter(
-		(linkedAccount) => linkedAccount.toString() !== accountId
-	);
-	await user.save();
-	return user;
+	const [newUser, newUserLink] = await Promise.all([
+		User.findByIdAndUpdate(
+			user._id,
+			{
+				$pull: { linkedAccounts: accountId },
+			},
+			{
+				new: true,
+			},
+		)
+			.select('linkedAccounts')
+			.populate(
+				'linkedAccounts',
+				'_id name avatar username email notificationsCount',
+			),
+		User.findByIdAndUpdate(accountId, {
+			$pull: { linkedAccounts: user._id },
+		}),
+	]);
+	return newUser;
 };
 
 const verifyAccessToken = (token) => {
