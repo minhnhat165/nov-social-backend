@@ -26,7 +26,7 @@ const search = async (req, res, next) => {
 		})
 			.sort({ count: -1 })
 			.limit(5)
-			.populate('data.user', 'name avatar email')
+			.populate('data.user', 'name avatar email username')
 			.select('_id data type text');
 
 		const userIdsInResult = [];
@@ -69,7 +69,7 @@ const getSearchLog = async (req, res) => {
 			select: 'type text data',
 			populate: {
 				path: 'data.user',
-				select: 'name avatar email provider',
+				select: 'name avatar email provider username',
 			},
 		})
 		.sort({ updatedAt: -1 });
