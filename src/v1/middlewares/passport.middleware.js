@@ -96,7 +96,7 @@ passport.use(
 			try {
 				const user = await User.findById(
 					payload.id,
-					'_id email name avatar followers',
+					'_id email name avatar followers following',
 				);
 				if (!user) {
 					return done(null, false);
