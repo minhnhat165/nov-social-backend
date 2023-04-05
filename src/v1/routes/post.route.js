@@ -40,4 +40,28 @@ router.patch(
 	PostController.unlikePost,
 );
 
+router.patch(
+	'/:id/hide',
+	passport.authenticate('jwt', { session: false }),
+	PostController.hidePost,
+);
+
+router.patch(
+	'/:id/unhide',
+	passport.authenticate('jwt', { session: false }),
+	PostController.unhidePost,
+);
+
+router.patch(
+	'/:id/save',
+	passport.authenticate('jwt', { session: false }),
+	PostController.savePost,
+);
+
+router.patch(
+	'/:id/unsave',
+	passport.authenticate('jwt', { session: false }),
+	PostController.unSavePost,
+);
+
 module.exports = router;
