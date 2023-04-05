@@ -42,7 +42,7 @@ const deletePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
 	await postService.deletePost(id, user);
-	timelineService.removeFromTimeline(id);
+	timelineService.removeFromTimelines(id);
 	userService.removePostIdFromUserCache(user._id.toString(), id);
 	res.status(200).json({ message: 'Post deleted' });
 };
@@ -70,6 +70,36 @@ const unlikePost = async (req, res) => {
 	res.status(200).json({ status: 'success' });
 };
 
+const hidePost = async (req, res) => {
+	const { id } = req.params;
+	const { user } = req;
+	await postService.hidePost(id, user._id.toString());
+	timelineService.removeFromTimeline(user._id.toString(), id);
+	res.status(200).json({ status: 'success' });
+};
+
+const unhidePost = async (req, res) => {
+	const { id } = req.params;
+	const { user } = req;
+	await postService.unhidePost(id, user._id.toString());
+	timelineService.addToTimeline(user._id.toString(), id);
+	res.status(200).json({ status: 'success' });
+};
+
+const savePost = async (req, res) => {
+	const { id } = req.params;
+	const { user } = req;
+	await postService.savePost(id, user._id.toString());
+	res.status(200).json({ status: 'success' });
+};
+
+const unSavePost = async (req, res) => {
+	const { id } = req.params;
+	const { user } = req;
+	await postService.unSavePost(id, user._id.toString());
+	res.status(200).json({ status: 'success' });
+};
+
 const PostController = {
 	createPost,
 	getPosts,
@@ -77,6 +107,10 @@ const PostController = {
 	updatePost,
 	likePost,
 	unlikePost,
+	hidePost,
+	unhidePost,
+	savePost,
+	unSavePost,
 };
 
 module.exports = PostController;

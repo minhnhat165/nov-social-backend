@@ -3,6 +3,9 @@ const Hashtag = require('../models/Hashtag');
 const createHttpError = require('http-errors');
 const { deleteImages } = require('./cloud.service');
 const redis = require('../databases/init.redis');
+const BlackList = require('../models/BlackList');
+const timelineService = require('./timeline.service');
+const Bookmark = require('../models/Bookmark');
 const createPost = async (post, user) => {
 	const {
 		content,
@@ -185,6 +188,42 @@ const unlikePost = async (postId, user) => {
 	return post;
 };
 
+const hidePost = async (postId, userId) => {
+	const newBlackList = await BlackList.findOneAndUpdate(
+		{ user: userId },
+		{ $addToSet: { posts: postId } },
+		{ upsert: true, new: true },
+	).select('posts');
+	redis.hsetobj(`user:${userId}`, 'hiddenPosts', newBlackList.posts);
+};
+const unhidePost = async (postId, userId) => {
+	const newBlackList = await BlackList.findOneAndUpdate(
+		{ user: userId },
+		{ $pull: { posts: postId } },
+		{ upsert: true, new: true },
+	).select('posts');
+
+	redis.hsetobj(`user:${userId}`, 'hiddenPosts', newBlackList.posts);
+};
+
+const savePost = async (postId, userId) => {
+	const newSavedPosts = await Bookmark.findOneAndUpdate(
+		{ user: userId },
+		{ $addToSet: { posts: postId } },
+		{ upsert: true, new: true },
+	).select('posts');
+	redis.hsetobj(`user:${userId}`, 'savedPosts', newSavedPosts.posts);
+};
+
+const unSavePost = async (postId, userId) => {
+	const newSavedPosts = await Bookmark.findOneAndUpdate(
+		{ user: userId },
+		{ $pull: { posts: postId } },
+		{ upsert: true, new: true },
+	).select('posts');
+	redis.hsetobj(`user:${userId}`, 'savedPosts', newSavedPosts.posts);
+};
+
 const handleHashtags = async (hashtagNames) => {
 	if (hashtagNames.length === 0) return [];
 	let allHashtags = [];
@@ -271,8 +310,12 @@ const getAllUserPostIds = async (userId) => {
 	return posts.map((post) => post._id);
 };
 
-const retrievePostsSendToClient = (posts, userId) => {
+const retrievePostsSendToClient = async (posts, userId) => {
+	const savedPostIds = await getSavedPostIds(userId);
 	return posts.map((post) => {
+		post.isSaved = savedPostIds.some(
+			(savedPostId) => savedPostId.toString() === post._id.toString(),
+		);
 		return retrievePostSendToClient(post, userId);
 	});
 };
@@ -283,6 +326,31 @@ const retrievePostSendToClient = (post, userId) => {
 		(like) => like.toString() === userId.toString(),
 	);
 	return newPost;
+};
+
+const getHiddenPostIds = async (userId) => {
+	let hiddenPostIds = await redis.hgetobj(`user${userId}`, 'hiddenPosts');
+
+	if (!hiddenPostIds) {
+		const blackList = await BlackList.findOne({
+			user: userId,
+		}).select('posts');
+		hiddenPostIds = blackList ? blackList.posts : [];
+		redis.hsetobj(`user:${userId}`, 'hiddenPosts', hiddenPostIds);
+	}
+	return hiddenPostIds;
+};
+
+const getSavedPostIds = async (userId) => {
+	let savedPostIds = await redis.hgetobj(`user${userId}`, 'savedPosts');
+	if (!savedPostIds) {
+		const bookmark = await Bookmark.findOne({
+			user: userId,
+		}).select('posts');
+		savedPostIds = bookmark ? bookmark.posts : [];
+		redis.hsetobj(`user:${userId}`, 'savedPosts', savedPostIds);
+	}
+	return savedPostIds;
 };
 
 // Cache
@@ -345,6 +413,11 @@ const postService = {
 	likePost,
 	unlikePost,
 	retrievePostSendToClient,
+	hidePost,
+	unhidePost,
+	getHiddenPostIds,
+	savePost,
+	unSavePost,
 };
 
 module.exports = postService;
