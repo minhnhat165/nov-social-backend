@@ -198,6 +198,7 @@ const searchUser = async (req, res, next) => {
 		.select('username name avatarId')
 		.limit(limit * 1)
 		.skip((page - 1) * limit)
+		.lean()
 		.exec();
 	const count = await User.countDocuments({
 		$or: [
@@ -223,7 +224,8 @@ const recommendUsers = async (req, res, next) => {
 	})
 		.sort({ followers: -1 })
 		.limit(parseInt(limit))
-		.select('name username avatar');
+		.select('name username avatar')
+		.lean();
 
 	res.status(200).json({ users: recommendedUsers });
 };
@@ -236,9 +238,9 @@ const getMentions = async (req, res, next) => {
 			{ name: { $regex: q, $options: 'i' } },
 		],
 	})
-
 		.select('username name avatar')
 		.limit(5)
+		.lean()
 		.exec();
 	return res.status(200).json({
 		status: 'success',
