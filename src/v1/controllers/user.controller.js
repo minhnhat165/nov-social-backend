@@ -55,6 +55,20 @@ const getOwnProfile = async (req, res, next) => {
 	return res.status(200).json({ success: true, profile });
 };
 
+const getTopRankers = async (req, res, next) => {
+	const { limit = 10 } = req.query;
+	const query = {
+		rank: { $exists: true },
+	};
+
+	const users = await User.find(query)
+		.sort({ 'rank.number': -1, 'rank.dateReached': 1 })
+		.limit(parseInt(limit))
+		.select('username avatar name rank')
+		.lean();
+	res.status(200).json({ users });
+};
+
 const updateProfile = async (req, res, next) => {
 	const { user, files, body: clientRequestData } = req;
 	const { avatar, cover } = files;
@@ -200,6 +214,20 @@ const searchUser = async (req, res, next) => {
 	});
 };
 
+const recommendUsers = async (req, res, next) => {
+	const { limit = 10 } = req.query;
+	// Find users who the logged-in user is not already following and who are not the logged-in user
+	const recommendedUsers = await User.find({
+		_id: { $ne: req.user._id },
+		followers: { $nin: req.user._id },
+	})
+		.sort({ followers: -1 })
+		.limit(parseInt(limit))
+		.select('name username avatar');
+
+	res.status(200).json({ users: recommendedUsers });
+};
+
 const getMentions = async (req, res, next) => {
 	const { q } = req.query;
 	const users = await User.find({
@@ -227,4 +255,6 @@ module.exports = {
 	getPhotos,
 	searchUser,
 	getMentions,
+	getTopRankers,
+	recommendUsers,
 };

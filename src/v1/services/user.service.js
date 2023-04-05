@@ -35,7 +35,7 @@ const searchByEmail = async (email, limit) => {
 	if (!email) return [];
 	return await User.find({ email: { $regex: email, $options: 'i' } })
 		.limit(limit)
-		.select('name avatar email');
+		.select('name avatar email username');
 };
 
 const searchByName = async (name, limit, options) => {
@@ -45,7 +45,7 @@ const searchByName = async (name, limit, options) => {
 		name: { $regex: name, $options: 'i' },
 	})
 		.limit(limit)
-		.select('name avatar email');
+		.select('name avatar email username');
 };
 
 const followUser = async (userId, followId) => {

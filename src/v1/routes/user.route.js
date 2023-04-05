@@ -8,7 +8,6 @@ const passport = require('passport');
 
 const userController = require('../controllers/user.controller');
 const { upload } = require('../middlewares/upload.middleware');
-const { getUserFromJwt } = require('../middlewares/user.middleware');
 const { verifyAccessTokenOptional } = require('../middlewares/jwt.middleware');
 
 const router = require('express-promise-router')();
@@ -58,5 +57,13 @@ router.get(
 router.get('/search', userController.searchUser);
 
 router.get('/mentions', userController.getMentions);
+
+router.get('/top-ranked', userController.getTopRankers);
+
+router.get(
+	'/recommendations',
+	passport.authenticate('jwt', { session: false }),
+	userController.recommendUsers,
+);
 
 module.exports = router;

@@ -36,6 +36,13 @@ const UserSchema = new Schema(
 			type: String,
 			trim: true,
 			unique: true,
+			validate: {
+				validator: function (v) {
+					return /^[a-zA-Z0-9]+$/.test(v); // ensure username contains only letters and numbers
+				},
+				message: (props) =>
+					`${props.value} must contain only letters and numbers`,
+			},
 		},
 		name: {
 			type: String,
@@ -115,6 +122,14 @@ const UserSchema = new Schema(
 			type: [String],
 			default: [],
 		},
+		rank: {
+			number: {
+				type: Number,
+				default: 1,
+				enum: [1, 2, 3, 4, 5, 6, 7],
+			},
+			dateReached: { type: Date, default: Date.now() },
+		},
 	},
 	{ timestamps: true },
 );
@@ -146,6 +161,20 @@ UserSchema.methods.toJSON = function () {
 };
 
 UserSchema.pre('save', async function (next) {
+	if (!this.username) {
+		// generate username if not provided
+		const firstName = this.firstName.replace(/\s/g, '');
+
+		const lastName = this.lastName.replace(/\s/g, '');
+		let num = 1;
+		let username = `${firstName}${lastName}`;
+		while (await this.constructor.findOne({ username })) {
+			// ensure username is unique
+			num++;
+			username = `${firstName}${lastName}${num}`;
+		}
+		this.username = username;
+	}
 	if (!this.isModified('password') || this.provider !== 'local')
 		return next();
 	try {
