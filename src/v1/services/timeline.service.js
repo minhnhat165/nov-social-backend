@@ -1,4 +1,5 @@
 const redis = require('../databases/init.redis');
+const BlackList = require('../models/BlackList');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const postService = require('./post.service');
@@ -6,8 +7,10 @@ const PREFIX = 'timeline';
 const createTimeline = async (userId) => {
 	const key = `${PREFIX}:${userId}`;
 	const { following } = await User.findById(userId).select('following');
+	const hiddenPostIds = await postService.getHiddenPostIds(userId);
 	const posts = await Post.find({
 		author: { $in: [...following, userId] },
+		_id: { $nin: hiddenPostIds },
 	})
 		.sort({ createdAt: -1 })
 		.select('_id');
@@ -52,7 +55,7 @@ const getTimeLine = async (user, lastIndex = -1, limit = 5) => {
 	}
 
 	return {
-		items: postService.retrievePostsSendToClient(posts, _id),
+		items: await postService.retrievePostsSendToClient(posts, _id),
 		lastIndex: newLastIndex,
 		moreAvailable: !isEnd,
 	};
@@ -87,7 +90,9 @@ const addMultipleToTimeline = async (userId, postIds) => {
 
 	const minScore = await redis.zrange(key, 0, 0, 'WITHSCORES');
 	const pipeline = redis.pipeline();
+	const hiddenPostIds = await postService.getHiddenPostIds(userId);
 	postIds.forEach((postId, index) => {
+		if (hiddenPostIds.includes(postId)) return;
 		pipeline.zadd(
 			key,
 			minScore.length > 0 ? minScore[1] - index : 0,
@@ -97,7 +102,16 @@ const addMultipleToTimeline = async (userId, postIds) => {
 	await pipeline.exec();
 };
 
-const removeFromTimeline = async (postId) => {
+const removeFromTimeline = async (userId, postId) => {
+	const keys = await redis.keys(`${PREFIX}:${userId}`);
+	const pipeline = redis.pipeline();
+	keys.forEach((key) => {
+		pipeline.zrem(key, postId);
+	});
+	await pipeline.exec();
+};
+
+const removeFromTimelines = async (postId) => {
 	const keys = await redis.keys(`${PREFIX}:*`);
 	const pipeline = redis.pipeline();
 	keys.forEach((key) => {
@@ -125,6 +139,7 @@ const timelineService = {
 	addMultipleToTimeline,
 	removeMultipleFromTimeline,
 	addToTimelines,
+	removeFromTimelines,
 };
 
 module.exports = timelineService;
