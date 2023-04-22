@@ -101,6 +101,10 @@ const PostSchema = new mongoose.Schema(
 			type: PollSchema,
 			default: null,
 		},
+		numComments: {
+			type: Number,
+			default: 0,
+		},
 	},
 	{ timestamps: true },
 );
