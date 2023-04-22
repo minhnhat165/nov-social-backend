@@ -1,11 +1,11 @@
 const Post = require('../models/Post');
 const Hashtag = require('../models/Hashtag');
 const createHttpError = require('http-errors');
-const { deleteImages } = require('./cloud.service');
+const { deleteImages, deleteFolder } = require('./cloud.service');
 const redis = require('../databases/init.redis');
 const BlackList = require('../models/BlackList');
-const timelineService = require('./timeline.service');
 const Bookmark = require('../models/Bookmark');
+const Comment = require('../models/Comment');
 const createPost = async (post, user) => {
 	const {
 		content,
@@ -35,7 +35,7 @@ const createPost = async (post, user) => {
 		{ _id: { $in: allHashtags } },
 		{ $push: { posts: savedPost._id } },
 	);
-	await savedPost.populate('author', 'avatar name');
+	await savedPost.populate('author', 'avatar name username');
 	cachePost(savedPost);
 	return savedPost;
 };
@@ -117,15 +117,17 @@ const deletePost = async (id, user) => {
 		deleteImages(photoIds);
 	}
 
+	deleteFolder(post._id.toString());
+
 	if (hashtags.length > 0) {
 		await Hashtag.updateMany(
 			{ _id: { $in: hashtags } },
 			{ $pull: { posts: post._id } },
 		);
 	}
-
 	await post.remove();
 	deletePostCached(post._id);
+	await Comment.deleteMany({ postId: post._id });
 	return true;
 };
 
@@ -300,7 +302,7 @@ const getPostsByListId = async (listId) => {
 
 const getPostsByListIdFromDatabase = async (listId) => {
 	const posts = await Post.find({ _id: { $in: listId } })
-		.populate('author', 'name avatar')
+		.populate('author', 'name avatar username')
 		.select('-__v -updatedAt -blockedUsers -allowedUsers');
 	return posts;
 };
@@ -418,6 +420,7 @@ const postService = {
 	getHiddenPostIds,
 	savePost,
 	unSavePost,
+	updatePostCached,
 };
 
 module.exports = postService;
