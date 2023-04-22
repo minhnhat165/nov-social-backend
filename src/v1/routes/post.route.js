@@ -1,6 +1,7 @@
 const passport = require('passport');
 
 const PostController = require('../controllers/post.controller');
+const { verifyAccessTokenOptional } = require('../middlewares/jwt.middleware');
 
 const router = require('express-promise-router')();
 
@@ -62,6 +63,12 @@ router.patch(
 	'/:id/unsave',
 	passport.authenticate('jwt', { session: false }),
 	PostController.unSavePost,
+);
+
+router.get(
+	'/:id/comments',
+	verifyAccessTokenOptional,
+	PostController.getPostComments,
 );
 
 module.exports = router;
