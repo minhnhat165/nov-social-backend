@@ -54,6 +54,13 @@ router.get(
 	userController.getPhotos,
 );
 
+router.get(
+	'/preview/:userId',
+	validateParams(schemas.idSchema, 'userId'),
+	verifyAccessTokenOptional,
+	userController.getPreview,
+);
+
 router.get('/search', userController.searchUser);
 
 router.get('/mentions', userController.getMentions);
