@@ -5,16 +5,9 @@ const morgan = require('morgan');
 const compression = require('compression');
 const cors = require('cors');
 const passport = require('passport');
-const authRouter = require('./v1/routes/auth.route');
-const userRouter = require('./v1/routes/user.route');
-const searchRouter = require('./v1/routes/search.route');
-const feedRouter = require('./v1/routes/feed.route');
-const interestRouter = require('./v1/routes/interest.route');
-const postRouter = require('./v1/routes/post.route');
 const { CLIENT_URL } = require('./v1/configs');
 var cookies = require('cookie-parser');
-const client = require('./v1/databases/init.redis');
-const redis = require('./v1/databases/init.redis');
+const useRoutes = require('./v1/routes');
 
 require('./v1/databases/init.mongodb');
 require('./v1/databases/init.redis');
@@ -47,18 +40,7 @@ app.use(
 app.use(passport.initialize());
 
 //router
-app.use('/api/auth', authRouter);
-app.use('/api/users', userRouter);
-app.use('/api/search', searchRouter);
-app.use('/api/posts', postRouter);
-app.use('/api/interests', interestRouter);
-app.use('/api/feed', feedRouter);
-// test redis
-app.post('/', async (req, res) => {
-	await redis.set('key', 'value');
-	const value = await client.get('key');
-	res.send(value);
-});
+useRoutes(app);
 // Error Handling Middleware called
 
 app.use((req, res, next) => {
