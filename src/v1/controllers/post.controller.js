@@ -2,6 +2,7 @@ const redis = require('../databases/init.redis');
 const client = require('../databases/init.redis');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const commentService = require('../services/comment.service');
 const postService = require('../services/post.service');
 const timelineService = require('../services/timeline.service');
 const userService = require('../services/user.service');
@@ -100,6 +101,25 @@ const unSavePost = async (req, res) => {
 	res.status(200).json({ status: 'success' });
 };
 
+const getPostComments = async (req, res) => {
+	const { id } = req.params;
+	const { limit = 10, page } = req.query;
+	const { user } = req;
+	const { comments, total } = await commentService.getCommentsByPostId(
+		id,
+		parseInt(page),
+		parseInt(limit),
+	);
+	res.status(200).json({
+		status: 'success',
+		total,
+		comments: commentService.retrieveCommentsSendToClient(
+			comments,
+			user?._id?.toString(),
+		),
+	});
+};
+
 const PostController = {
 	createPost,
 	getPosts,
@@ -111,6 +131,7 @@ const PostController = {
 	unhidePost,
 	savePost,
 	unSavePost,
+	getPostComments,
 };
 
 module.exports = PostController;

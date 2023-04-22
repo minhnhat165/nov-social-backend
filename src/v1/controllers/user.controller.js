@@ -11,13 +11,13 @@ const userService = require('../services/user.service');
 const getProfile = async (req, res, next) => {
 	const { userId } = req.value.params;
 	const { user: userReq } = req;
-	const user = await User.findById(userId).populate('interests');
+	const user = await User.findById(userId).populate('interests').lean();
 	if (!user) throw createHttpError.NotFound('User not found');
 	const profile = {};
 
 	const profilePrivate = user.profilePrivate;
 	// remove private key from profile
-	Object.keys(user._doc).forEach((key) => {
+	Object.keys(user).forEach((key) => {
 		if (!profilePrivate.includes(key)) {
 			profile[key] = user[key];
 		}
@@ -35,13 +35,16 @@ const getProfile = async (req, res, next) => {
 		);
 	return res.status(200).json({
 		status: 'success',
-		profile: userService.retrieveUserSendToClient(profile, userReq?._id),
+		profile: userService.retrieveUserSendToClient(
+			profile,
+			userReq?._id.toString(),
+		),
 	});
 };
 
 const getOwnProfile = async (req, res, next) => {
 	const { user } = req;
-	const profile = await User.findById(user._id).populate('interests');
+	const profile = await User.findById(user._id).populate('interests').lean();
 	if (!profile) throw createHttpError.NotFound('User not found');
 	profile.photos = profile.photos.map((photo) =>
 		getImageWithDimension(photo, 160, 160),
@@ -52,7 +55,23 @@ const getOwnProfile = async (req, res, next) => {
 			AVATAR_SIZE.MEDIUM,
 			AVATAR_SIZE.MEDIUM,
 		);
-	return res.status(200).json({ success: true, profile });
+	return res.status(200).json({
+		success: true,
+		profile: userService.retrieveUserSendToClient(profile, user?._id),
+	});
+};
+
+const getPreview = async (req, res, next) => {
+	const { userId } = req.value.params;
+	const { _id } = req.user;
+	const preview = await User.findById(userId)
+		.select('name username avatar following followers rank')
+		.lean();
+	if (!preview) throw createHttpError.NotFound('User not found');
+	return res.status(200).json({
+		success: true,
+		user: userService.retrieveUserSendToClient(preview, _id),
+	});
 };
 
 const getTopRankers = async (req, res, next) => {
@@ -227,7 +246,11 @@ const recommendUsers = async (req, res, next) => {
 		.select('name username avatar')
 		.lean();
 
-	res.status(200).json({ users: recommendedUsers });
+	res.status(200).json({
+		users: [
+			...recommendedUsers.map((user) => ({ ...user, followed: false })),
+		],
+	});
 };
 
 const getMentions = async (req, res, next) => {
@@ -259,4 +282,5 @@ module.exports = {
 	getMentions,
 	getTopRankers,
 	recommendUsers,
+	getPreview,
 };
