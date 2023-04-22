@@ -52,10 +52,22 @@ const deleteImages = async (publicIds) => {
 	}
 };
 
+const deleteFolder = async (path) => {
+	console.log('path deleted', path);
+	if (!path) return null;
+	try {
+		await cloudinary_js_config.api.delete_resources_by_prefix(path);
+		await cloudinary_js_config.api.delete_folder(path);
+	} catch (error) {
+		console.log(error);
+	}
+};
+
 module.exports = {
 	uploadImageBuffer,
 	deleteImage,
 	getImageWithDimension,
 	getOriginalImage,
 	deleteImages,
+	deleteFolder,
 };
