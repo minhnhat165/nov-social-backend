@@ -104,7 +104,7 @@ const retrieveUserSendToClient = (user, userReqId) => {
 		...restUser,
 		followingCount: following.length,
 		followersCount: followers.length,
-		isFollowed: followers.includes(userReqId),
+		followed: followers.some((follower) => follower.toString() === userReqId.toString()),
 	};
 };
 
