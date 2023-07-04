@@ -2,6 +2,7 @@ const {
 	validateParams,
 	validateBody,
 	schemas,
+	validateQuery,
 } = require('../middlewares/validation.middleware');
 
 const passport = require('passport');
@@ -48,6 +49,12 @@ router.patch(
 	userController.unFollowUser,
 );
 
+router.patch(
+	'/read-notify',
+	passport.authenticate('jwt', { session: false }),
+	userController.readNotify,
+);
+
 router.get(
 	'/:userId/photos',
 	validateParams(schemas.idSchema, 'userId'),
@@ -71,6 +78,14 @@ router.get(
 	'/recommendations',
 	passport.authenticate('jwt', { session: false }),
 	userController.recommendUsers,
+);
+
+// check username availability
+
+router.get(
+	'/username-availability',
+	validateQuery(schemas.usernameSchema),
+	userController.checkUsernameAvailability,
 );
 
 module.exports = router;

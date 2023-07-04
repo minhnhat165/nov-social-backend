@@ -2,6 +2,11 @@ const passport = require('passport');
 
 const PostController = require('../controllers/post.controller');
 const { verifyAccessTokenOptional } = require('../middlewares/jwt.middleware');
+const {
+	schemas,
+	validateParams,
+	validateQuery,
+} = require('../middlewares/validation.middleware');
 
 const router = require('express-promise-router')();
 
@@ -15,6 +20,14 @@ router.get(
 	'/',
 	passport.authenticate('jwt', { session: false }),
 	PostController.getPosts,
+);
+
+router.get(
+	'/:id',
+	validateParams(schemas.idSchema, 'id'),
+	validateQuery(schemas.postSchema),
+	verifyAccessTokenOptional,
+	PostController.getPost,
 );
 
 router.delete(

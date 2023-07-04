@@ -271,6 +271,22 @@ const getMentions = async (req, res, next) => {
 	});
 };
 
+const readNotify = async (req, res, next) => {
+	const { user } = req;
+	await userService.resetNumNotifications(user._id);
+	return res.status(200).json({
+		status: 'success',
+	});
+};
+
+const checkUsernameAvailability = async (req, res, next) => {
+	const { username } = req.query;
+	const available = await userService.checkUsernameAvailability(username);
+	return res.status(200).json({
+		available,
+	});
+};
+
 module.exports = {
 	getProfile,
 	updateProfile,
@@ -283,4 +299,6 @@ module.exports = {
 	getTopRankers,
 	recommendUsers,
 	getPreview,
+	readNotify,
+	checkUsernameAvailability,
 };

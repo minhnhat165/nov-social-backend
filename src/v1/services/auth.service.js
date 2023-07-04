@@ -69,7 +69,7 @@ const addExistingAccount = async (user, account) => {
 			.select('linkedAccounts')
 			.populate(
 				'linkedAccounts',
-				'_id name avatar username email notificationsCount',
+				'_id name avatar username email numNotifications',
 			),
 		User.findByIdAndUpdate(account._id, {
 			$addToSet: { linkedAccounts: user._id },
@@ -111,7 +111,7 @@ const removeLinkedAccount = async (user, accountId) => {
 			.select('linkedAccounts')
 			.populate(
 				'linkedAccounts',
-				'_id name avatar username email notificationsCount',
+				'_id name avatar username email numNotifications',
 			),
 		User.findByIdAndUpdate(accountId, {
 			$pull: { linkedAccounts: user._id },

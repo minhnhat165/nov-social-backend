@@ -2,9 +2,6 @@ const Interest = require('../models/Interest');
 const InterestCategory = require('../models/InterestCategory');
 const Search = require('../models/Search');
 const SearchLog = require('../models/SearchLog');
-const User = require('../models/User');
-const searchService = require('../services/search.service');
-const userService = require('../services/user.service');
 const escapeRegex = require('../utils/escapeRegex');
 
 const search = async (req, res, next) => {
@@ -16,7 +13,11 @@ const search = async (req, res, next) => {
 	let result = [];
 	if (q.includes('[email]')) {
 		const email = q.split('[email]')[1].trim();
-		users = await userService.searchByEmail(email, limit);
+		users = await userService.searchByField({
+			field: 'email',
+			value: email,
+			limit,
+		});
 	} else {
 		// fix Regular expression is invalid: /[]/i
 		const newQuery = escapeRegex(q);
@@ -39,8 +40,11 @@ const search = async (req, res, next) => {
 
 		const resLimit = limit - result.length;
 
-		users = await userService.searchByName(newQuery, resLimit, {
-			_id: { $nin: userIdsInResult },
+		users = await userService.searchByField({
+			field: 'name',
+			value: newQuery,
+			limit: resLimit,
+			options: { _id: { $nin: userIdsInResult } },
 		});
 	}
 
@@ -143,5 +147,8 @@ const searchController = {
 	deleteSearchLog,
 	searchInterest,
 };
+
+const userService = require('../services/user.service');
+const searchService = require('../services/search.service');
 
 module.exports = searchController;

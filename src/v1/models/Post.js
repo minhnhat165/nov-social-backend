@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Photo = require('./Photo');
+const { POST } = require('../configs');
 const Schema = mongoose.Schema;
 const PollOptionSchema = new mongoose.Schema(
 	{
@@ -66,7 +67,7 @@ const PostSchema = new mongoose.Schema(
 		},
 		visibility: {
 			type: String,
-			enum: ['public', 'private', 'followers', 'custom'],
+			enum: Object.values(POST.VISIBILITY),
 			default: 'public',
 		},
 		allowedUsers: {

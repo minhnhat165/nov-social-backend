@@ -1,13 +1,18 @@
-const Post = require('../models/Post');
 const Hashtag = require('../models/Hashtag');
 const createHttpError = require('http-errors');
-const { deleteImages, deleteFolder } = require('./cloud.service');
-const redis = require('../databases/init.redis');
-const BlackList = require('../models/BlackList');
-const timelineService = require('./timeline.service');
-const Bookmark = require('../models/Bookmark');
 const Comment = require('../models/Comment');
-const postService = require('./post.service');
+
+// READ
+const getCommentById = async (id) => {
+	const comment = await Comment.findById(id).populate(
+		'author',
+		'avatar name username',
+	);
+	if (!comment) {
+		throw new createHttpError(404, 'Comment not found');
+	}
+	return comment;
+};
 
 const getCommentsByPostId = async (
 	postId,
@@ -15,9 +20,7 @@ const getCommentsByPostId = async (
 	limit = 10,
 	parentId = null,
 ) => {
-	if (!(await Post.exists({ _id: postId }))) {
-		throw new createHttpError(404, 'Post not found');
-	}
+	await postService.getPostById(postId);
 	const comments = await Comment.find({ postId, parentId })
 		.sort({ createdAt: 1 })
 		.skip(page * limit)
@@ -28,15 +31,28 @@ const getCommentsByPostId = async (
 	return { comments, total };
 };
 
-const getCommentById = async (id) => {
-	const comment = await Comment.findById(id).populate(
-		'author',
-		'avatar name username',
-	);
-	if (!comment) {
-		throw new createHttpError(404, 'Comment not found');
+const getCommentsByCursor = async ({
+	postId,
+	parentId = null,
+	cursor = null,
+	limit = 10,
+}) => {
+	await postService.getPostById(postId);
+	const query = { postId, parentId };
+	if (cursor) {
+		query.createdAt = { $gt: cursor };
 	}
-	return comment;
+	const comments = await Comment.find(query)
+		.sort({ createdAt: 1 })
+		.limit(limit)
+		.populate('author', 'avatar name username');
+	return {
+		comments,
+		endCursor: comments.length
+			? comments[comments.length - 1].createdAt
+			: null,
+		hasMore: comments.length === limit,
+	};
 };
 
 const getCommentByParentId = async (parentId, page = 0, limit = 10) => {
@@ -51,8 +67,9 @@ const getCommentByParentId = async (parentId, page = 0, limit = 10) => {
 	return comments;
 };
 
+// WRITE
 const createComment = async (comment, authorId) => {
-	const {
+	let {
 		content,
 		photos,
 		hashtags: hashtagNames = [],
@@ -60,24 +77,17 @@ const createComment = async (comment, authorId) => {
 		postId,
 		parentId = null,
 	} = comment;
-
-	const post = await Post.findById(postId);
-
-	if (!post) throw new createHttpError(404, 'Post not found');
+	const post = await postService.getPostById(postId);
 
 	let path = post._id.toString();
 
-	if (parentId) {
-		const parentComment = await Comment.findById(parentId)
-			.select('path')
-			.lean();
-
-		if (!parentComment)
-			throw new createHttpError(404, 'Parent comment not found');
+	const parentComment = parentId && (await getCommentById(parentId));
+	if (parentComment) {
 		path = parentComment.path + '/' + parentComment._id.toString();
 	}
 
 	const allHashtags = await handleHashtags(hashtagNames);
+	mentions = mentions ? [...new Set(mentions)] : [];
 	let newComment = new Comment({
 		author: authorId,
 		content,
@@ -85,36 +95,51 @@ const createComment = async (comment, authorId) => {
 		hashtags: allHashtags,
 		postId,
 		parentId,
-		mentions,
 		path,
+		mentions,
 	});
 	newComment = await newComment.save();
 	await newComment.populate('author', 'avatar name username');
+	// update num replies for parent comments
 	const { parentIds } = extractPath(path);
-	await Comment.updateMany(
-		{ _id: { $in: parentIds } },
-		{ $inc: { numReplies: 1 } },
+	Promise.all(
+		parentIds.map((parentId) => {
+			updateNumReplies(parentId, 1);
+		}),
 	);
 
-	await Post.updateOne({ _id: postId }, { $inc: { numComments: 1 } });
-	postService.updatePostCached(postId, { numComments: post.numComments + 1 });
+	postService.updateNumComments(postId, 1);
+	notificationService.createCommentNotification(newComment._id);
 	return newComment;
 };
 
-const extractPath = (path) => {
-	const pathArr = path.split('/');
+const getCommentWhitRelative = async (commentId) => {
+	const comment = await getCommentById(commentId);
+	const { path } = comment;
+	const { parentIds } = extractPath(path);
+	const rootParentId = parentIds[0];
+	let comments = await Comment.find({
+		// id = root or root include path
+		$or: [{ _id: rootParentId }, { path: new RegExp(`^${path}/?$`) }],
+	})
+		.sort({ createdAt: 1 })
+		.populate('author', 'avatar name username');
+
+	const numNextComments = await Comment.countDocuments({
+		createdAt: { $gt: comment.createdAt },
+	});
+
 	return {
-		postId: pathArr[0],
-		parentIds: pathArr.slice(1),
+		numNextComments,
+		comments: comments,
 	};
 };
 
+// UPDATE
 const updateComment = async (commentId, data, authorId) => {
-	const { content, photos, hashtags: hashtagNames, mentions } = data;
+	let { content, photos, hashtags: hashtagNames, mentions } = data;
 	let dataUpdate = {};
 	const commentUpdate = await getCommentById(commentId);
-
-	if (!commentUpdate) throw new createHttpError(404, 'Post not found');
 	if (commentUpdate.author._id.toString() !== authorId.toString())
 		throw new createHttpError(403, 'Unauthorized');
 
@@ -147,11 +172,21 @@ const updateComment = async (commentId, data, authorId) => {
 		const photoIdsRemove = oldPhotoIds.filter(
 			(photoId) => !newPhotoIds.includes(photoId),
 		);
-		deleteImages(photoIdsRemove);
+		cloudinaryService.deleteImages(photoIdsRemove);
 		dataUpdate.photos = photos;
 	}
 
-	if (mentions) dataUpdate.mentions = mentions;
+	if (mentions) {
+		mentions = [...new Set(mentions)];
+		dataUpdate.mentions = mentions;
+		notificationService.updateNotificationTypeTag({
+			oldTags: commentUpdate.mentions,
+			newTags: mentions,
+			sender: commentUpdate.author,
+			entityId: commentUpdate._id,
+			entityType: 'comment',
+		});
+	}
 	const updatedComment = await Comment.findByIdAndUpdate(
 		commentId,
 		dataUpdate,
@@ -163,62 +198,13 @@ const updateComment = async (commentId, data, authorId) => {
 	return updatedComment;
 };
 
-const deleteComment = async (id, userId) => {
-	const comment = await getCommentById(id);
-	const post = await Post.findById(comment.postId).select(
-		'author numComments',
+const updateNumReplies = async (commentId, num) => {
+	const comment = await Comment.findByIdAndUpdate(
+		commentId,
+		{ $inc: { numReplies: num } },
+		{ new: true },
 	);
-	if (!post) throw new createHttpError(404, 'Post not found');
-
-	if (
-		comment.author._id.toString() !== userId.toString() &&
-		post.author.toString() !== userId.toString()
-	)
-		throw new createHttpError(403, 'Unauthorized');
-	// remove post in hashtag
-	const { hashtags, photos } = comment;
-
-	if (photos.length > 0) {
-		const photoIds = photos.map((photo) => photo.publicId);
-		deleteImages(photoIds);
-	}
-
-	deleteFolder(`${comment.path}/${comment._id}`);
-
-	if (hashtags.length > 0) {
-		await Hashtag.updateMany(
-			{ _id: { $in: hashtags } },
-			{ $pull: { posts: comment._id } },
-		);
-	}
-
-	await comment.remove();
-
-	// delete all child comment
-	const childDeleted = await Comment.deleteMany({
-		path: { $regex: `${comment._id}` },
-	});
-
-	const numCommentsDeleted = childDeleted.deletedCount + 1;
-	// update numComments of post
-	await Post.updateOne(
-		{ _id: post._id },
-		{ $inc: { numComments: -numCommentsDeleted } },
-	);
-
-	// update numReplies of parent comment
-	const { parentIds } = extractPath(comment.path);
-	await Comment.updateMany(
-		{ _id: { $in: parentIds } },
-		{ $inc: { numReplies: -numCommentsDeleted } },
-	);
-
-	postService.updatePostCached(post._id, {
-		numComments: post.numComments - numCommentsDeleted,
-	});
-	return {
-		numCommentsDeleted,
-	};
+	return comment;
 };
 
 const likeComment = async (commentId, userId) => {
@@ -235,6 +221,14 @@ const likeComment = async (commentId, userId) => {
 		},
 		{ new: true },
 	);
+	notificationService.createNotification({
+		sender: userId,
+		receivers: [comment.author._id],
+		entityId: comment._id,
+		entityType: 'comment',
+		type: NOTIFICATION_TYPES.LIKE,
+		message: NOTIFICATION_MESSAGES.LIKE.COMMENT,
+	});
 	return comment;
 };
 
@@ -256,37 +250,108 @@ const unlikeComment = async (commentId, userId) => {
 		},
 	);
 
+	notificationService.deleteNotification({
+		sender: userId,
+		entity: comment._id,
+		type: NOTIFICATION_TYPES.LIKE,
+	});
+
 	return comment;
 };
 
-const unhidePost = async (postId, userId) => {
-	const newBlackList = await BlackList.findOneAndUpdate(
-		{ user: userId },
-		{ $pull: { posts: postId } },
-		{ upsert: true, new: true },
-	).select('posts');
+// DELETE
+const deleteComment = async (id, userId, ignorePermission = false) => {
+	const comment = await getCommentById(id);
+	const post = await postService.getPostById(comment.postId);
+	if (!ignorePermission) {
+		if (
+			comment.author._id.toString() !== userId &&
+			post.author._id.toString() !== userId
+		) {
+			throw new createHttpError(403, 'Unauthorized');
+		}
+	}
 
-	redis.hsetobj(`user:${userId}`, 'hiddenPosts', newBlackList.posts);
+	// remove post in hashtag
+	const { hashtags, photos } = comment;
+
+	if (photos.length > 0) {
+		const photoIds = photos.map((photo) => photo.publicId);
+		cloudinaryService.deleteImages(photoIds);
+	}
+
+	cloudinaryService.deleteFolder(`${comment.path}/${comment._id}`);
+
+	if (hashtags.length > 0) {
+		await Hashtag.updateMany(
+			{ _id: { $in: hashtags } },
+			{ $pull: { posts: comment._id } },
+		);
+	}
+
+	await comment.remove();
+
+	// SIDE UPDATE
+	// delete notification
+	notificationService.deleteNotificationsByEntityId(comment._id);
+	const { numDeleted: numRepliesDeleted } = await deleteReplies(comment._id);
+	const numCommentsDeleted = numRepliesDeleted + 1;
+	postService.updateNumComments(post._id, -numCommentsDeleted);
+	// update num replies for parent comments
+	const { parentIds } = extractPath(comment.path);
+	Promise.all(
+		parentIds.map((parentId) => {
+			updateNumReplies(parentId, -numCommentsDeleted);
+		}),
+	);
+	return {
+		numCommentsDeleted,
+	};
 };
 
-const savePost = async (postId, userId) => {
-	const newSavedPosts = await Bookmark.findOneAndUpdate(
-		{ user: userId },
-		{ $addToSet: { posts: postId } },
-		{ upsert: true, new: true },
-	).select('posts');
-	redis.hsetobj(`user:${userId}`, 'savedPosts', newSavedPosts.posts);
+const deleteCommentByPostId = async (postId) => {
+	const comments = await Comment.find({ postId }).select('_id').lean();
+	await Promise.all(
+		comments.map((comment) =>
+			notificationService.deleteNotificationsByEntityId(comment._id),
+		),
+	);
+	await Comment.deleteMany({ postId });
+	return {
+		numDeleted: comments.length,
+	};
 };
 
-const unSavePost = async (postId, userId) => {
-	const newSavedPosts = await Bookmark.findOneAndUpdate(
-		{ user: userId },
-		{ $pull: { posts: postId } },
-		{ upsert: true, new: true },
-	).select('posts');
-	redis.hsetobj(`user:${userId}`, 'savedPosts', newSavedPosts.posts);
+const deleteReplies = async (commentId) => {
+	const comments = await Comment.find({
+		path: { $regex: `${commentId}` },
+	})
+		.select('_id')
+		.lean();
+
+	await Comment.deleteMany({
+		path: { $regex: `${commentId}` },
+	});
+
+	Promise.all(
+		comments.map((comment) =>
+			notificationService.deleteNotificationsByEntityId(comment._id),
+		),
+	);
+
+	return {
+		numDeleted: comments.length,
+	};
 };
 
+// HELPERS
+const extractPath = (path) => {
+	const pathArr = path.split('/');
+	return {
+		postId: pathArr[0],
+		parentIds: pathArr.slice(1),
+	};
+};
 const handleHashtags = async (hashtagNames) => {
 	if (hashtagNames.length === 0) return [];
 	let allHashtags = [];
@@ -312,53 +377,6 @@ const handleHashtags = async (hashtagNames) => {
 	return allHashtags;
 };
 
-const getPostsByListId = async (listId) => {
-	// Get all post from redis cache
-	const postCached = await redis.mget(
-		listId.map((id) => `${CACHE_POST_PREFIX}:${id}`),
-	);
-
-	// Get all post id not in redis cache
-	const postIdsNotCached = listId.filter((id, index) => !postCached[index]);
-
-	// Get all post not in redis cache from database
-	let postNotCached =
-		postIdsNotCached.length <= 0
-			? []
-			: await getPostsByListIdFromDatabase(postIdsNotCached);
-
-	// Set all post not in redis cache to redis cache
-	cachePosts(postNotCached);
-
-	// Combine all post from redis cache and post from database
-	const posts = [];
-
-	for (let i = 0; i < listId.length; i++) {
-		if (postCached[i]) {
-			posts.push(JSON.parse(postCached[i]));
-			continue;
-		}
-		const postId = listId[i];
-		const post = postNotCached.find(
-			(post) => post._id.toString() === postId,
-		);
-		if (post) posts.push({ ...post._doc, likesCount: post.likes.length });
-	}
-	return posts;
-};
-
-const getPostsByListIdFromDatabase = async (listId) => {
-	const posts = await Post.find({ _id: { $in: listId } })
-		.populate('author', 'name avatar')
-		.select('-__v -updatedAt -blockedUsers -allowedUsers');
-	return posts;
-};
-
-const getAllUserPostIds = async (userId) => {
-	const posts = await Post.find({ author: userId }).select('_id');
-	return posts.map((post) => post._id);
-};
-
 const retrieveCommentsSendToClient = (comments, userId) => {
 	return comments.map((comment) => {
 		return retrieveCommentSendToClient(comment, userId);
@@ -366,60 +384,36 @@ const retrieveCommentsSendToClient = (comments, userId) => {
 };
 
 const retrieveCommentSendToClient = (comment, userId) => {
+	if (comment.hasOwnProperty('_doc')) {
+		comment = comment._doc;
+	}
 	const { likes, ...newComment } = comment;
+	console.log(likes);
 	newComment.liked = likes.some(
-		(like) => like.toString() === userId.toString(),
+		(like) => like.toString() === userId?.toString(),
 	);
 	newComment.numLikes = likes.length;
 	return newComment;
 };
 
-const getHiddenPostIds = async (userId) => {
-	let hiddenPostIds = await redis.hgetobj(`user${userId}`, 'hiddenPosts');
-
-	if (!hiddenPostIds) {
-		const blackList = await BlackList.findOne({
-			user: userId,
-		}).select('posts');
-		hiddenPostIds = blackList ? blackList.posts : [];
-		redis.hsetobj(`user:${userId}`, 'hiddenPosts', hiddenPostIds);
-	}
-	return hiddenPostIds;
-};
-
-// Cache
-const CACHE_POST_PREFIX = 'post';
-
-const cachePosts = async (posts) => {
-	const pipeline = redis.pipeline();
-	posts.forEach((post) => {
-		post._doc.likesCount = post.likes.length;
-		pipeline.set(
-			`${CACHE_POST_PREFIX}:${post._id}`,
-			JSON.stringify(post),
-			'EX',
-			60 * 60 * 24,
-		); // 1 day
-	});
-	await pipeline.exec();
-};
-
 const commentService = {
 	getCommentsByPostId,
+	getCommentsByCursor,
 	getCommentByParentId,
+	getCommentById,
 	createComment,
 	updateComment,
 	deleteComment,
-	getAllUserPostIds,
-	getPostsByListId,
 	likeComment,
 	unlikeComment,
 	retrieveCommentSendToClient,
 	retrieveCommentsSendToClient,
-	unhidePost,
-	getHiddenPostIds,
-	savePost,
-	unSavePost,
+	deleteCommentByPostId,
+	getCommentWhitRelative,
 };
 
 module.exports = commentService;
+const notificationService = require('./notification.service');
+const postService = require('./post.service');
+const cloudinaryService = require('./cloud.service');
+const { NOTIFICATION_TYPES, NOTIFICATION_MESSAGES } = require('../configs');

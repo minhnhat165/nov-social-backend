@@ -140,11 +140,11 @@ const getOwnProfile = async (req, res, next) => {
 	const { user: userReq } = req;
 	const user = await User.findById(userReq.id)
 		.select(
-			'name username lastName email avatar notificationsCount linkedAccounts',
+			'name username lastName email avatar numNotifications linkedAccounts',
 		)
 		.populate(
 			'linkedAccounts',
-			'name username email avatar notificationsCount',
+			'name username email avatar numNotifications',
 		)
 		.lean();
 	return res.status(200).json({

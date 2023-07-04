@@ -1,3 +1,10 @@
 {
-	"cSpell.words": ["alphanum", "cloudinary", "middlewares", "newsfeed"]
+	"cSpell.words": [
+		"alphanum",
+		"cloudinary",
+		"hgetobj",
+		"hsetobj",
+		"middlewares",
+		"newsfeed"
+	]
 }

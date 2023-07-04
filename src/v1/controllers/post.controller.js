@@ -39,6 +39,26 @@ const getPosts = async (req, res) => {
 	res.status(200).json(posts);
 };
 
+const getPost = async (req, res) => {
+	const { id } = req.params;
+	const { commentId } = req.query;
+	const { user } = req;
+	let post = await postService.getPost(id, user);
+	post = postService.convertPostSendToClient(post._doc, user._id.toString());
+	if (commentId) {
+		const comments = await commentService.getCommentWhitRelative(commentId);
+		comments.comments = commentService.retrieveCommentsSendToClient(
+			comments.comments,
+			user._id.toString(),
+		);
+		post.comments = comments;
+	}
+
+	res.status(200).json({
+		post,
+	});
+};
+
 const deletePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
@@ -103,16 +123,18 @@ const unSavePost = async (req, res) => {
 
 const getPostComments = async (req, res) => {
 	const { id } = req.params;
-	const { limit = 10, page } = req.query;
+	const { limit = 10, cursor } = req.query;
 	const { user } = req;
-	const { comments, total } = await commentService.getCommentsByPostId(
-		id,
-		parseInt(page),
-		parseInt(limit),
-	);
+	const { comments, endCursor, hasMore } =
+		await commentService.getCommentsByCursor({
+			postId: id,
+			limit: parseInt(limit),
+			cursor,
+			parentId: null,
+		});
 	res.status(200).json({
-		status: 'success',
-		total,
+		hasMore,
+		endCursor,
 		comments: commentService.retrieveCommentsSendToClient(
 			comments,
 			user?._id?.toString(),
@@ -123,6 +145,7 @@ const getPostComments = async (req, res) => {
 const PostController = {
 	createPost,
 	getPosts,
+	getPost,
 	deletePost,
 	updatePost,
 	likePost,

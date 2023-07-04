@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Photo = require('./Photo');
+const Notification = require('./Notification');
 const Schema = mongoose.Schema;
 const CommentSchema = new mongoose.Schema(
 	{
@@ -46,7 +47,9 @@ const CommentSchema = new mongoose.Schema(
 	},
 	{ timestamps: true },
 );
+CommentSchema.index({ postId: 1 });
+CommentSchema.index({ postId: 1, parentId: 1 });
 
 const Comment = mongoose.model('comment', CommentSchema);
-CommentSchema.index({ postId: 1, parentId: 1 });
+
 module.exports = Comment;

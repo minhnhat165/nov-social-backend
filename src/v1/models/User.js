@@ -105,7 +105,7 @@ const UserSchema = new Schema(
 			default: [],
 			ref: 'user',
 		},
-		notificationsCount: { type: Number, default: 0 },
+		numNotifications: { type: Number, default: 0 },
 		linkedAccounts: [
 			{
 				type: mongoose.Types.ObjectId,
@@ -164,10 +164,12 @@ UserSchema.pre('save', async function (next) {
 	if (!this.username) {
 		// generate username if not provided
 		const firstName = this.firstName.replace(/\s/g, '');
-
 		const lastName = this.lastName.replace(/\s/g, '');
 		let num = 1;
-		let username = `${firstName}${lastName}`;
+		let username = `${firstName}${lastName}`
+			.normalize('NFD')
+			.replace(/[\u0300-\u036f]/g, '')
+			.replace(/[^a-zA-Z0-9_]/g, '');
 		while (await this.constructor.findOne({ username })) {
 			// ensure username is unique
 			num++;

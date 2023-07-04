@@ -14,9 +14,9 @@ const uploadImageBuffer = async (file, path) => {
 		});
 		return res.public_id;
 	} catch (error) {
-		console.log(error);
-	} finally {
-		if (tempPath) fs.unlinkSync(tempPath);
+		if (!error.message.startsWith("Can't find folder with path")) {
+			throw error;
+		}
 	}
 };
 
@@ -53,7 +53,6 @@ const deleteImages = async (publicIds) => {
 };
 
 const deleteFolder = async (path) => {
-	console.log('path deleted', path);
 	if (!path) return null;
 	try {
 		await cloudinary_js_config.api.delete_resources_by_prefix(path);
@@ -63,7 +62,7 @@ const deleteFolder = async (path) => {
 	}
 };
 
-module.exports = {
+const cloudinaryService = {
 	uploadImageBuffer,
 	deleteImage,
 	getImageWithDimension,
@@ -71,3 +70,5 @@ module.exports = {
 	deleteImages,
 	deleteFolder,
 };
+
+module.exports = cloudinaryService;

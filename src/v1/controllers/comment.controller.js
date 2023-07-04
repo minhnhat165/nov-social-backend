@@ -50,7 +50,7 @@ const deleteComment = async (req, res) => {
 	const { user } = req;
 	const { numCommentsDeleted } = await commentService.deleteComment(
 		id,
-		user._id,
+		user._id.toString(),
 	);
 	res.status(200).json({
 		status: 'ok',

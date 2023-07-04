@@ -5,9 +5,8 @@ const { deleteImages, deleteFolder } = require('./cloud.service');
 const redis = require('../databases/init.redis');
 const BlackList = require('../models/BlackList');
 const Bookmark = require('../models/Bookmark');
-const Comment = require('../models/Comment');
 const createPost = async (post, user) => {
-	const {
+	let {
 		content,
 		photos,
 		hashtags: hashtagNames = [],
@@ -20,6 +19,8 @@ const createPost = async (post, user) => {
 	const allHashtags = await handleHashtags(hashtagNames);
 
 	const newPoll = await handlePoll(poll, user);
+
+	mentions = mentions ? [...new Set(mentions)] : [];
 
 	const newPost = new Post({
 		author: _id,
@@ -36,12 +37,57 @@ const createPost = async (post, user) => {
 		{ $push: { posts: savedPost._id } },
 	);
 	await savedPost.populate('author', 'avatar name username');
+	if (mentions.length > 0) {
+		notificationService.createNotification({
+			sender: _id,
+			receivers: mentions,
+			type: NOTIFICATION_TYPES.TAG,
+			entityId: savedPost._id,
+			entityType: ENTITY_TYPES.POST,
+			message: NOTIFICATION_MESSAGES.POST.MENTION,
+		});
+	}
 	cachePost(savedPost);
 	return savedPost;
 };
 
+const getPostById = async (id) => {
+	const post = await Post.findById(id)
+		.populate('author', 'avatar name username')
+		.populate('hashtags', 'name')
+		.populate('mentions', 'name username');
+	if (!post) throw new createHttpError(404, 'Post not found');
+	return post;
+};
+
+const getPost = async (id, userId) => {
+	const post = await getPostById(id);
+
+	const { author, visibility } = post;
+	if (
+		visibility === POST.VISIBILITY.PRIVATE &&
+		author._id.toString() !== userId
+	) {
+		throw new createHttpError(403, 'Unauthorized');
+	}
+	return post;
+};
+
+const getPostsByUserId = async (userId, page = 0, limit = 10) => {
+	const posts = await Post.find({ author: userId })
+		.sort({ createdAt: -1 })
+		.skip(page * limit)
+		.limit(limit)
+		.populate('author', 'avatar name username')
+		.populate('hashtags', 'name')
+		.populate('mentions', 'name username')
+		.lean();
+	const total = await Post.countDocuments({ author: userId });
+	return { posts, total };
+};
+
 const updatePost = async (postId, post, user) => {
-	const {
+	let {
 		content,
 		photos,
 		hashtags: hashtagNames,
@@ -95,13 +141,38 @@ const updatePost = async (postId, post, user) => {
 		dataUpdate.poll = newPoll;
 	}
 
-	if (mentions) dataUpdate.mentions = mentions;
+	if (mentions) {
+		mentions = [...new Set(mentions)];
+		dataUpdate.mentions = mentions;
+		notificationService.updateNotificationTypeTag({
+			oldTags: updatePost.mentions,
+			newTags: mentions,
+			sender: _id,
+			entityId: postId,
+			entityType: ENTITY_TYPES.POST,
+		});
+	}
 	const updatedPost = await Post.findByIdAndUpdate(postId, dataUpdate, {
 		new: true,
 	}).select(Object.keys(dataUpdate).join(' '));
 
 	updatePostCached(postId, updatedPost._doc);
 	return updatedPost;
+};
+
+const updateNumComments = async (postId, numComment) => {
+	const post = await getPostById(postId);
+	await Post.updateOne(
+		{ _id: post._id },
+		{
+			$inc: {
+				numComments: numComment,
+			},
+		},
+	);
+	updatePostCached(post._id, {
+		numComments: post.numComments + numComment,
+	});
 };
 
 const deletePost = async (id, user) => {
@@ -127,7 +198,8 @@ const deletePost = async (id, user) => {
 	}
 	await post.remove();
 	deletePostCached(post._id);
-	await Comment.deleteMany({ postId: post._id });
+	notificationService.deleteNotificationsByEntityId(post._id);
+	commentService.deleteCommentByPostId(post._id);
 	return true;
 };
 
@@ -136,10 +208,8 @@ const likePost = async (postId, user) => {
 	const userId = _id.toString();
 	let post = await getPostCached(postId);
 	if (!post) {
-		post = await Post.findById(postId).select('likes');
+		post = await getPostById(postId);
 	}
-
-	if (!post) throw new createHttpError(404, 'Post not found');
 
 	const { likes } = post;
 	const isLiked = likes.some((like) => like.toString() === userId);
@@ -160,6 +230,15 @@ const likePost = async (postId, user) => {
 		likesCount: newLikes.length,
 	});
 
+	notificationService.createNotification({
+		sender: userId,
+		receivers: [post.author._id],
+		entityId: post._id,
+		entityType: 'post',
+		type: NOTIFICATION_TYPES.LIKE,
+		message: NOTIFICATION_MESSAGES.LIKE.POST,
+	});
+
 	return post;
 };
 
@@ -168,10 +247,8 @@ const unlikePost = async (postId, user) => {
 	const userId = _id.toString();
 	let post = await getPostCached(postId);
 	if (!post) {
-		post = await Post.findById(postId).select('likes');
+		post = await getPostById(postId);
 	}
-
-	if (!post) throw new createHttpError(404, 'Post not found');
 
 	const { likes } = post;
 	const isLiked = likes.some((like) => like.toString() === userId);
@@ -187,6 +264,13 @@ const unlikePost = async (postId, user) => {
 		likes: newLikes,
 		likesCount: newLikes.length,
 	});
+
+	notificationService.deleteNotification({
+		sender: userId,
+		entity: post._id,
+		type: NOTIFICATION_TYPES.LIKE,
+	});
+
 	return post;
 };
 
@@ -312,17 +396,17 @@ const getAllUserPostIds = async (userId) => {
 	return posts.map((post) => post._id);
 };
 
-const retrievePostsSendToClient = async (posts, userId) => {
+const convertPostsSendToClient = async (posts, userId) => {
 	const savedPostIds = await getSavedPostIds(userId);
 	return posts.map((post) => {
 		post.isSaved = savedPostIds.some(
 			(savedPostId) => savedPostId.toString() === post._id.toString(),
 		);
-		return retrievePostSendToClient(post, userId);
+		return convertPostSendToClient(post, userId);
 	});
 };
 
-const retrievePostSendToClient = (post, userId) => {
+const convertPostSendToClient = (post, userId) => {
 	const { likes, ...newPost } = post;
 	newPost.isLiked = likes.some(
 		(like) => like.toString() === userId.toString(),
@@ -411,16 +495,27 @@ const postService = {
 	updatePost,
 	getAllUserPostIds,
 	getPostsByListId,
-	retrievePostsSendToClient,
+	convertPostsSendToClient,
 	likePost,
 	unlikePost,
-	retrievePostSendToClient,
+	convertPostSendToClient,
 	hidePost,
 	unhidePost,
 	getHiddenPostIds,
 	savePost,
 	unSavePost,
 	updatePostCached,
+	getPostById,
+	getPost,
+	updateNumComments,
 };
 
 module.exports = postService;
+const commentService = require('./comment.service');
+const notificationService = require('./notification.service');
+const {
+	NOTIFICATION_TYPES,
+	NOTIFICATION_MESSAGES,
+	ENTITY_TYPES,
+	POST,
+} = require('../configs');

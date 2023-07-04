@@ -2,8 +2,8 @@ const createHttpError = require('http-errors');
 const User = require('../models/User');
 const redis = require('../databases/init.redis');
 const Post = require('../models/Post');
-const timelineService = require('./timeline.service');
 
+// WRITE
 const createUser = async (user) => {
 	// Check if user is already existed
 	const countUser = await User.countDocuments({
@@ -31,6 +31,7 @@ const getUser = async (id) => {
 	return user;
 };
 
+// GET
 const searchByEmail = async (email, limit) => {
 	if (!email) return [];
 	return await User.find({ email: { $regex: email, $options: 'i' } })
@@ -43,6 +44,16 @@ const searchByName = async (name, limit, options) => {
 	return await User.find({
 		...options,
 		name: { $regex: name, $options: 'i' },
+	})
+		.limit(limit)
+		.select('name avatar email username');
+};
+
+const searchByField = async ({ field, value, limit, options = {} }) => {
+	if (!field || !value) return [];
+	return await User.find({
+		...options,
+		[field]: { $regex: value, $options: 'i' },
 	})
 		.limit(limit)
 		.select('name avatar email username');
@@ -64,6 +75,15 @@ const followUser = async (userId, followId) => {
 		User.findByIdAndUpdate(followId, { $addToSet: { followers: userId } }),
 	]);
 
+	notificationService.createNotification({
+		sender: userId,
+		receivers: [followId],
+		type: NOTIFICATION_TYPES.FOLLOW,
+		entityType: ENTITY_TYPES.USER,
+		entityId: userId,
+		message: NOTIFICATION_MESSAGES.FOLLOW.FOLLOW,
+	});
+
 	timelineService.addMultipleToTimeline(
 		userId,
 		await getUserPostIds(followId),
@@ -81,10 +101,38 @@ const unFollowUser = async (userId, followId) => {
 		User.findByIdAndUpdate(followId, { $pull: { followers: userId } }),
 	]);
 
+	notificationService.deleteNotification({
+		sender: userId,
+		entity: userId,
+		type: NOTIFICATION_TYPES.FOLLOW,
+	});
+
 	timelineService.removeMultipleFromTimeline(
 		userId,
 		await getUserPostIds(followId),
 	);
+};
+
+const increaseNumNotifications = async (userId) => {
+	const { numNotifications } = await User.findByIdAndUpdate(
+		userId,
+		{ $inc: { numNotifications: 1 } },
+		{
+			new: true,
+		},
+	).select('numNotifications');
+	return numNotifications;
+};
+
+const resetNumNotifications = async (userId) => {
+	const { numNotifications } = await User.findByIdAndUpdate(
+		userId,
+		{ $set: { numNotifications: 0 } },
+		{
+			new: true,
+		},
+	).select('numNotifications');
+	return numNotifications;
 };
 
 const retrieveUserSendToClient = (user, userReqId) => {
@@ -96,7 +144,7 @@ const retrieveUserSendToClient = (user, userReqId) => {
 		providerId = null,
 		_v,
 		updatedAt,
-		notificationsCount,
+		numNotifications,
 		status,
 		...restUser
 	} = user;
@@ -104,7 +152,9 @@ const retrieveUserSendToClient = (user, userReqId) => {
 		...restUser,
 		followingCount: following.length,
 		followersCount: followers.length,
-		followed: followers.some((follower) => follower.toString() === userReqId.toString()),
+		followed: followers.some(
+			(follower) => follower.toString() === userReqId.toString(),
+		),
 	};
 };
 
@@ -120,6 +170,13 @@ const getUserPostIds = async (userId) => {
 const getUserPostIdsFromDB = async (userId) => {
 	const posts = await Post.find({ author: userId }).select('_id');
 	return posts.map((post) => post._id);
+};
+
+// HELPERS
+
+const checkUsernameAvailability = async (username) => {
+	const countUser = await User.countDocuments({ username });
+	return countUser === 0;
 };
 
 // cache
@@ -159,6 +216,17 @@ const userService = {
 	deleteUserPostIdsFromCache,
 	addPostIdToUserCache,
 	removePostIdFromUserCache,
+	increaseNumNotifications,
+	resetNumNotifications,
+	checkUsernameAvailability,
+	searchByField,
 };
 
 module.exports = userService;
+const timelineService = require('./timeline.service');
+const notificationService = require('./notification.service');
+const {
+	NOTIFICATION_TYPES,
+	ENTITY_TYPES,
+	NOTIFICATION_MESSAGES,
+} = require('../configs');

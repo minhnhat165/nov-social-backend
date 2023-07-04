@@ -21,6 +21,7 @@ module.exports = {
 	REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
 	VERIFY_TOKEN_SECRET: process.env.VERIFY_TOKEN_SECRET,
 	MAX_LINKED_ACCOUNT: process.env.MAX_ACCOUNT_ADD || 5,
+	// img size
 	AVATAR_SIZE: {
 		SMALL: 60,
 		MEDIUM: 320,
@@ -30,6 +31,51 @@ module.exports = {
 		MEDIUM: {
 			WIDTH: 1500,
 			HEIGHT: 500,
+		},
+	},
+	ENTITY_TYPES: {
+		POST: 'post',
+		COMMENT: 'comment',
+		USER: 'user',
+	},
+	// NOTIFICATION TYPES
+	NOTIFICATION_TYPES: {
+		FOLLOW: 'FOLLOW',
+		LIKE: 'LIKE',
+		COMMENT: 'COMMENT',
+		TAG: 'TAG',
+		BIRTHDAY: 'BIRTHDAY',
+		EVENT: 'EVENT',
+	},
+	NOTIFICATION_MESSAGES: {
+		COMMENT: {
+			COMMENT: 'commented on your post',
+			REPLY: 'replied to your comment',
+			MENTION: 'mentioned you in a comment',
+		},
+		LIKE: {
+			COMMENT: 'liked your comment',
+			POST: 'liked your post',
+		},
+		POST: {
+			POST: 'posted on your timeline',
+			MENTION: 'mentioned you in a post',
+		},
+		FOLLOW: {
+			FOLLOW: 'started following you',
+		},
+	},
+	// POST
+	POST: {
+		VISIBILITY: {
+			PUBLIC: 'PUBLIC',
+			FOLLOWER: 'FOLLOWER',
+			PRIVATE: 'PRIVATE',
+			CUSTOM: 'CUSTOM',
+		},
+		TYPE: {
+			POST: 'POST',
+			SHARE: 'SHARE',
 		},
 	},
 };

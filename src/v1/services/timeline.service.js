@@ -2,7 +2,6 @@ const redis = require('../databases/init.redis');
 const BlackList = require('../models/BlackList');
 const Post = require('../models/Post');
 const User = require('../models/User');
-const postService = require('./post.service');
 const PREFIX = 'timeline';
 const createTimeline = async (userId) => {
 	const key = `${PREFIX}:${userId}`;
@@ -25,7 +24,6 @@ const createTimeline = async (userId) => {
 		await pipeline.exec();
 	}
 };
-
 const getTimeLine = async (user, lastIndex = -1, limit = 5) => {
 	const { _id } = user;
 	const key = `${PREFIX}:${_id}`;
@@ -55,7 +53,7 @@ const getTimeLine = async (user, lastIndex = -1, limit = 5) => {
 	}
 
 	return {
-		items: await postService.retrievePostsSendToClient(posts, _id),
+		items: await postService.convertPostsSendToClient(posts, _id),
 		lastIndex: newLastIndex,
 		moreAvailable: !isEnd,
 	};
@@ -143,3 +141,4 @@ const timelineService = {
 };
 
 module.exports = timelineService;
+const postService = require('./post.service');
