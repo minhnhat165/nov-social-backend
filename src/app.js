@@ -16,6 +16,9 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
 	cors: {
 		origin: CLIENT_URL,
+		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+		allowedHeaders: ['Content-Type', 'Authorization'],
+		credentials: true,
 	},
 });
 
@@ -26,36 +29,24 @@ global._io.on('connection', SocketService.connect);
 require('./v1/databases/init.mongodb');
 require('./v1/databases/init.redis');
 
-// add cors
 app.use(
 	cors({
 		origin: CLIENT_URL,
-		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
+		credentials: true,
 	}),
-);
-app.use(cookies());
+); // Enable CORS for all routes
 
-//user middleware
+app.use(cookies());
 app.use(helmet());
 app.use(morgan('combined'));
-// compress responses
 app.use(compression());
-
-// add body-parser
 app.use(express.json());
-app.use(
-	express.urlencoded({
-		extended: true,
-	}),
-);
-// add passport
+app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
-//router
 useRoutes(app);
-// Error Handling Middleware called
 
 app.use((req, res, next) => {
 	const error = new Error('Not found');
@@ -63,7 +54,6 @@ app.use((req, res, next) => {
 	next(error);
 });
 
-// error handler middleware
 app.use((error, req, res, next) => {
 	res.status(error.status || 500).send({
 		status: error.status || 500,
