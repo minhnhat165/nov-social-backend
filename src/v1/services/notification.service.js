@@ -51,11 +51,20 @@ const createNotification = async ({
 		});
 	}
 
+	await notification.populate(POPULATE_OPTION.populate);
+
 	await Promise.all(
-		receivers.map((receiver) =>
-			createUserNotification(receiver, notification._id),
-		),
+		receivers.map(async (receiver) => {
+			createUserNotification(receiver, notification._id);
+			const socketIds = await redisService.user.online.getSocketIds(
+				receiver,
+			);
+			socketIds.forEach((socketId) => {
+				_io.to(socketId).emit('server.notification', notification);
+			});
+		}),
 	);
+
 	return notification;
 };
 
@@ -130,7 +139,25 @@ const createUserNotification = async (userId, notificationId) => {
 			notification: notificationId,
 		});
 		await userNotification.save();
-		userService.increaseNumNotifications(userId);
+		const { linkedAccounts, numNotifications: num } =
+			await userService.increaseNumNotifications(userId);
+		const socketIds = await redisService.user.online.getSocketIds(userId);
+		socketIds.forEach((socketId) => {
+			_io.to(socketId).emit('server.notification.count', num);
+		});
+		Promise.all(
+			linkedAccounts.map(async (linkedAccount) => {
+				const socketIds = await redisService.user.online.getSocketIds(
+					linkedAccount,
+				);
+				socketIds.forEach((socketId) => {
+					_io.to(socketId).emit('server.notification.link.count', {
+						accountId: userId,
+						numNotifications: num,
+					});
+				});
+			}),
+		);
 	}
 	return userNotification;
 };
@@ -389,3 +416,4 @@ module.exports = notificationService;
 const commentService = require('./comment.service');
 const postService = require('./post.service');
 const userService = require('./user.service');
+const redisService = require('./redis.service');

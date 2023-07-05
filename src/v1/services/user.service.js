@@ -114,14 +114,14 @@ const unFollowUser = async (userId, followId) => {
 };
 
 const increaseNumNotifications = async (userId) => {
-	const { numNotifications } = await User.findByIdAndUpdate(
+	const { numNotifications, linkedAccounts } = await User.findByIdAndUpdate(
 		userId,
 		{ $inc: { numNotifications: 1 } },
 		{
 			new: true,
 		},
-	).select('numNotifications');
-	return numNotifications;
+	).select('numNotifications linkedAccounts');
+	return { linkedAccounts, numNotifications };
 };
 
 const resetNumNotifications = async (userId) => {

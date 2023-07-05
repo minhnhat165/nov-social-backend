@@ -8,6 +8,20 @@ const passport = require('passport');
 const { CLIENT_URL } = require('./v1/configs');
 var cookies = require('cookie-parser');
 const useRoutes = require('./v1/routes');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const SocketService = require('./v1/services/socket.service');
+
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+	cors: {
+		origin: CLIENT_URL,
+	},
+});
+
+global._io = io;
+
+global._io.on('connection', SocketService.connect);
 
 require('./v1/databases/init.mongodb');
 require('./v1/databases/init.redis');
@@ -57,4 +71,4 @@ app.use((error, req, res, next) => {
 	});
 });
 
-module.exports = app;
+module.exports = httpServer;

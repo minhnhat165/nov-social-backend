@@ -1,4 +1,4 @@
-const redis = require('../databases/init.mongodb');
+const redis = require('../databases/init.redis');
 const Post = require('../models/Post');
 const User = require('../models/User');
 
@@ -24,8 +24,56 @@ const timeline = {
 	},
 };
 
+const user = {
+	online: {
+		add: async (userId, socketId) => {
+			const key = `online:${userId}`;
+			const user = await redis.get(key);
+			let socketIds = [];
+			if (user) {
+				socketIds = JSON.parse(user);
+				if (!socketIds.includes(socketId)) {
+					socketIds.push(socketId);
+				}
+			} else {
+				socketIds.push(socketId);
+			}
+			redis.set(key, JSON.stringify(socketIds));
+		},
+		remove: async (userId, socketId) => {
+			const key = `online:${userId}`;
+			const user = await redis.get(key);
+			if (!user) return;
+			const socketIds = JSON.parse(user);
+			const index = socketIds.indexOf(socketId);
+			if (index > -1) {
+				socketIds.splice(index, 1);
+			}
+			if (socketIds.length === 0) {
+				redis.del(key);
+				return 0;
+			}
+			redis.set(key, JSON.stringify(socketIds));
+			return socketIds.length;
+		},
+		getAllUserId: async () => {
+			const keys = await redis.keys('online:*');
+			const userIds = keys.map((key) => key.split(':')[1]);
+			return userIds;
+		},
+		getSocketIds: async (userId) => {
+			const key = `online:${userId}`;
+			const user = await redis.get(key);
+			if (!user) return [];
+			const socketIds = JSON.parse(user);
+			return socketIds;
+		},
+	},
+};
+
 const redisService = {
 	timeline,
+	user,
 };
 
 module.exports = redisService;

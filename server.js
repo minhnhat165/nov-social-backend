@@ -1,9 +1,9 @@
 require('dotenv').config();
-const app = require('./src/app');
+const httpServer = require('./src/app');
 
 const { PORT } = process.env;
 
-const server = app.listen(PORT, () => {
+const server = httpServer.listen(PORT, () => {
 	console.log(`WSV start with port ${PORT}`);
 });
 
