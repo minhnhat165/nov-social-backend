@@ -25,6 +25,8 @@ const createResponseToken = (user, res) => {
 	res.cookie('refresh_token', refreshToken, {
 		httpOnly: true,
 		maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+		sameSite: 'none',
+		secure: true,
 	});
 	return accessToken;
 };
