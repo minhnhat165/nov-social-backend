@@ -135,6 +135,26 @@ const resetNumNotifications = async (userId) => {
 	return numNotifications;
 };
 
+const getFollowing = async (userId, page, limit) => {
+	const users = await User.find({
+		followers: userId,
+	})
+		.select('name avatar email username')
+		.limit(limit)
+		.skip((page - 1) * limit);
+	const total = await User.countDocuments({
+		followers: userId,
+	});
+	const totalPages = Math.ceil(total / limit);
+	const currentPage = page;
+	return {
+		items: users,
+		currentPage,
+		total,
+		totalPages,
+	};
+};
+
 const retrieveUserSendToClient = (user, userReqId) => {
 	const {
 		followers,
@@ -220,6 +240,7 @@ const userService = {
 	resetNumNotifications,
 	checkUsernameAvailability,
 	searchByField,
+	getFollowing,
 };
 
 module.exports = userService;

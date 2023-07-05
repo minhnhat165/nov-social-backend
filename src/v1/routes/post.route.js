@@ -84,4 +84,11 @@ router.get(
 	PostController.getPostComments,
 );
 
+router.get(
+	'/user/:userId',
+	validateParams(schemas.idSchema, 'userId'),
+	verifyAccessTokenOptional,
+	PostController.getPostsByUserId,
+);
+
 module.exports = router;

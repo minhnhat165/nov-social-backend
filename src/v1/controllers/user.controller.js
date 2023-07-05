@@ -287,6 +287,20 @@ const checkUsernameAvailability = async (req, res, next) => {
 	});
 };
 
+const getFollowing = async (req, res, next) => {
+	const { userId } = req.value.params;
+	const { page = 1, limit = 5 } = req.query;
+	const data = await userService.getFollowing(
+		userId,
+		parseInt(page),
+		parseInt(limit),
+	);
+	return res.status(200).json({
+		status: 'success',
+		data,
+	});
+};
+
 module.exports = {
 	getProfile,
 	updateProfile,
@@ -301,4 +315,5 @@ module.exports = {
 	getPreview,
 	readNotify,
 	checkUsernameAvailability,
+	getFollowing,
 };

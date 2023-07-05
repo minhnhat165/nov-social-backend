@@ -39,6 +39,23 @@ const getPosts = async (req, res) => {
 	res.status(200).json(posts);
 };
 
+const getPostsByUserId = async (req, res) => {
+	const { userId } = req.params;
+	const { cursor, limit = 10 } = req.query;
+	const { user } = req;
+	let data = await postService.getPostsByUserId(
+		userId,
+		user?._id.toString(),
+		cursor,
+		parseInt(limit),
+	);
+
+	res.status(200).json({
+		status: 'success',
+		data,
+	});
+};
+
 const getPost = async (req, res) => {
 	const { id } = req.params;
 	const { commentId } = req.query;
@@ -155,6 +172,7 @@ const PostController = {
 	savePost,
 	unSavePost,
 	getPostComments,
+	getPostsByUserId,
 };
 
 module.exports = PostController;

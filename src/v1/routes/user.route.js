@@ -88,4 +88,10 @@ router.get(
 	userController.checkUsernameAvailability,
 );
 
+router.get(
+	'/:userId/following',
+	validateParams(schemas.idSchema, 'userId'),
+	userController.getFollowing,
+);
+
 module.exports = router;

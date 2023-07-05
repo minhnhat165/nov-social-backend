@@ -73,18 +73,18 @@ const getPost = async (id, userId) => {
 	return post;
 };
 
-const getPostsByUserId = async (userId, page = 0, limit = 10) => {
-	const posts = await Post.find({ author: userId })
-		.sort({ createdAt: -1 })
-		.skip(page * limit)
-		.limit(limit)
-		.populate('author', 'avatar name username')
-		.populate('hashtags', 'name')
-		.populate('mentions', 'name username')
-		.lean();
-	const total = await Post.countDocuments({ author: userId });
-	return { posts, total };
-};
+// const getPostsByUserId = async (userId, page = 0, limit = 10) => {
+// 	const posts = await Post.find({ author: userId })
+// 		.sort({ createdAt: -1 })
+// 		.skip(page * limit)
+// 		.limit(limit)
+// 		.populate('author', 'avatar name username')
+// 		.populate('hashtags', 'name')
+// 		.populate('mentions', 'name username')
+// 		.lean();
+// 	const total = await Post.countDocuments({ author: userId });
+// 	return { posts, total };
+// };
 
 const updatePost = async (postId, post, user) => {
 	let {
@@ -439,6 +439,30 @@ const getSavedPostIds = async (userId) => {
 	return savedPostIds;
 };
 
+const getPostsByUserId = async (
+	userId,
+	currentUserId,
+	cursor = new Date().toISOString(),
+	limit = 10,
+) => {
+	const hiddenPostIds = await getHiddenPostIds(currentUserId);
+	const posts = await Post.find({
+		author: userId,
+		_id: { $nin: hiddenPostIds },
+		createdAt: { $lt: cursor },
+	})
+		.sort({ createdAt: -1 })
+		.limit(limit)
+		.populate('author', 'name avatar username')
+		.select('-__v -updatedAt -blockedUsers -allowedUsers')
+		.lean();
+	return {
+		items: await convertPostsSendToClient(posts, currentUserId),
+		endCursor: posts.length > 0 ? posts[posts.length - 1].createdAt : null,
+		hasNextPage: posts.length === limit,
+	};
+};
+
 // Cache
 const CACHE_POST_PREFIX = 'post';
 
@@ -508,6 +532,7 @@ const postService = {
 	getPostById,
 	getPost,
 	updateNumComments,
+	getPostsByUserId,
 };
 
 module.exports = postService;
