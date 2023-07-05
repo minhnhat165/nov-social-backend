@@ -15,7 +15,7 @@ const SocketService = require('./v1/services/socket.service');
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
 	cors: {
-		origin: '*',
+		origin: CLIENT_URL,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
 		credentials: true,
@@ -31,10 +31,10 @@ require('./v1/databases/init.redis');
 
 app.use(
 	cors({
-		origin: '*',
+		origin: CLIENT_URL,
+		credentials: true,
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
-		credentials: true,
 	}),
 ); // Enable CORS for all routes
 
