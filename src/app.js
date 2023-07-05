@@ -15,7 +15,7 @@ const SocketService = require('./v1/services/socket.service');
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
 	cors: {
-		origin: CLIENT_URL,
+		origin: '*',
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
 		credentials: true,
@@ -31,7 +31,7 @@ require('./v1/databases/init.redis');
 
 app.use(
 	cors({
-		origin: CLIENT_URL,
+		origin: '*',
 		methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
 		allowedHeaders: ['Content-Type', 'Authorization'],
 		credentials: true,
