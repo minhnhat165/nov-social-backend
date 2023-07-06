@@ -235,21 +235,38 @@ const searchUser = async (req, res, next) => {
 };
 
 const recommendUsers = async (req, res, next) => {
-	const { limit = 10 } = req.query;
-	// Find users who the logged-in user is not already following and who are not the logged-in user
+	let { limit = 10, page = 1 } = req.query;
+	limit = parseInt(limit);
+	page = parseInt(page);
 	const recommendedUsers = await User.find({
 		_id: { $ne: req.user._id },
 		followers: { $nin: req.user._id },
 	})
-		.sort({ followers: -1 })
-		.limit(parseInt(limit))
+		.limit(limit)
+		.skip((page - 1) * limit)
 		.select('name username avatar')
 		.lean();
 
+	const total = await User.countDocuments({
+		_id: { $ne: req.user._id },
+		followers: { $nin: req.user._id },
+	});
+
+	const totalPage = Math.ceil(total / limit);
+
 	res.status(200).json({
-		users: [
-			...recommendedUsers.map((user) => ({ ...user, followed: false })),
-		],
+		status: 'success',
+		data: {
+			items: [
+				...recommendedUsers.map((user) => ({
+					...user,
+					followed: false,
+				})),
+			],
+			total,
+			totalPage,
+			currentPage: page,
+		},
 	});
 };
 
