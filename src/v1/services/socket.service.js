@@ -85,6 +85,19 @@ class SocketService {
 			gameRoom[roomId] = room;
 			_io.to(roomId).emit('server.game.room.leave', room);
 		});
+
+		socket.on(
+			'client.game.room.message.send',
+			async ({ roomId, message }) => {
+				const room = gameRoom[roomId];
+				if (!room) return;
+				room.messages.push(message);
+				gameRoom[roomId] = room;
+				socket
+					.to(roomId)
+					.emit('server.game.room.message.send', message);
+			},
+		);
 	}
 }
 
