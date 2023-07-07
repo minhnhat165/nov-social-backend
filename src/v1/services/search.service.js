@@ -38,7 +38,10 @@ const createSearch = async (data) => {
 	// Save the search
 	await search.save();
 	// Return the search populated with user details
-	return await search.populate('data.user', 'name avatar email provider');
+	return await search.populate(
+		'data.user',
+		'name avatar email username provider',
+	);
 };
 
 const saveSearchLog = async (searchId, userId) => {
@@ -58,7 +61,7 @@ const saveSearchLog = async (searchId, userId) => {
 		await searchLog.populate('search', 'type text data');
 		await searchLog.search.populate(
 			'data.user',
-			'name avatar email provider'
+			'name avatar email provider',
 		);
 		return searchLog;
 	} catch (err) {
