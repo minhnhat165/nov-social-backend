@@ -161,7 +161,7 @@ UserSchema.methods.toJSON = function () {
 };
 
 UserSchema.pre('save', async function (next) {
-	if (this?.username) {
+	if (!this.username) {
 		// generate username if not provided
 		const firstName = this.firstName.replace(/\s/g, '');
 		const lastName = this.lastName.replace(/\s/g, '');
