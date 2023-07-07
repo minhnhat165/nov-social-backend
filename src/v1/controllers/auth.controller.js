@@ -203,7 +203,12 @@ const updatePassword = async (req, res) => {
 	const user = await User.findById(id).select('password');
 	if (!user) throw createError.NotFound('Account not found');
 	user.password = password;
-	await user.save();
+	const salt = await bcrypt.genSalt(10);
+	const hash = await bcrypt.hash(password, salt);
+	await User.findByIdAndUpdate(id, {
+		password: hash,
+	});
+
 	return res.status(200).json({ success: true });
 };
 
