@@ -447,7 +447,14 @@ const getPostsByUserId = async (
 ) => {
 	const hiddenPostIds = await getHiddenPostIds(currentUserId);
 	const posts = await Post.find({
-		author: userId,
+		$or: [
+			{
+				author: userId,
+			},
+			{
+				mentions: userId,
+			},
+		],
 		_id: { $nin: hiddenPostIds },
 		createdAt: { $lt: cursor },
 	})
