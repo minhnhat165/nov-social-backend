@@ -1,6 +1,7 @@
 const createHttpError = require('http-errors');
 const { AVATAR_SIZE } = require('../configs');
 const User = require('../models/User');
+const Post = require('../models/Post');
 const {
 	uploadImageBuffer,
 	deleteImage,
@@ -34,6 +35,8 @@ const getProfile = async (req, res, next) => {
 			AVATAR_SIZE.MEDIUM,
 			AVATAR_SIZE.MEDIUM,
 		);
+	const postsCount = await Post.countDocuments({ author: userId });
+	profile.postsCount = postsCount;
 	return res.status(200).json({
 		status: 'success',
 		profile: userService.retrieveUserSendToClient(
@@ -56,6 +59,8 @@ const getOwnProfile = async (req, res, next) => {
 			AVATAR_SIZE.MEDIUM,
 			AVATAR_SIZE.MEDIUM,
 		);
+	const postsCount = await Post.countDocuments({ author: user._id });
+	profile.postsCount = postsCount;
 	return res.status(200).json({
 		success: true,
 		profile: userService.retrieveUserSendToClient(profile, user?._id),
@@ -68,6 +73,8 @@ const getPreview = async (req, res, next) => {
 	const preview = await User.findById(userId)
 		.select('name username avatar following followers rank')
 		.lean();
+	const postsCount = await Post.countDocuments({ author: userId });
+	preview.postsCount = postsCount;
 	if (!preview) throw createHttpError.NotFound('User not found');
 	return res.status(200).json({
 		success: true,
