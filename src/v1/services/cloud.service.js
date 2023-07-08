@@ -62,6 +62,21 @@ const deleteFolder = async (path) => {
 	}
 };
 
+const getImagesByFolder = async ({ folder, limit = 9, next_cursor = null }) => {
+	if (!folder) return null;
+	try {
+		const res = await cloudinary_js_config.search
+			.expression(`folder:${folder}/*`)
+			.max_results(limit)
+			.sort_by('public_id', 'desc')
+			.next_cursor(next_cursor)
+			.execute();
+		return res;
+	} catch (error) {
+		console.log(error);
+	}
+};
+
 const cloudinaryService = {
 	uploadImageBuffer,
 	deleteImage,
@@ -69,6 +84,7 @@ const cloudinaryService = {
 	getOriginalImage,
 	deleteImages,
 	deleteFolder,
+	getImagesByFolder,
 };
 
 module.exports = cloudinaryService;

@@ -5,6 +5,7 @@ const {
 	uploadImageBuffer,
 	deleteImage,
 	getImageWithDimension,
+	getImagesByFolder,
 } = require('../services/cloud.service');
 const userService = require('../services/user.service');
 
@@ -198,7 +199,29 @@ const unFollowUser = async (req, res, next) => {
 
 const getPhotos = async (req, res, next) => {
 	const { userId } = req.value.params;
-	const { page = 1, limit = 5 } = req.q;
+	const { limit = 5, endCursor } = req.query;
+	const data = await getImagesByFolder({
+		folder: userId,
+		limit,
+		next_cursor: endCursor,
+	});
+	const photos = data.resources.map((photo) => ({
+		_id: photo.public_id,
+		url: photo.secure_url,
+	}));
+
+	return res.status(200).json({
+		status: 'success',
+		data: {
+			items: photos,
+			endCursor: data?.next_cursor,
+			hasNextPage: !!data?.next_cursor,
+		},
+	});
+};
+
+const getProfilePhotos = async (req, res, next) => {
+	const { userId } = req.value.params;
 	const { photos } = await User.findById(userId).select('photos');
 	return res.status(200).json({
 		status: 'success',
@@ -318,6 +341,54 @@ const getFollowing = async (req, res, next) => {
 	});
 };
 
+const getFollow = async (req, res, next) => {
+	const { userId } = req.value.params;
+	let { page = 1, limit = 5, type = 'following', q } = req.query;
+	page = parseInt(page);
+	limit = parseInt(limit);
+	const query = {};
+	if (q) {
+		query.$or = [
+			{ username: { $regex: q, $options: 'i' } },
+			{ name: { $regex: q, $options: 'i' } },
+		];
+	}
+	switch (type) {
+		case 'following':
+			query.followers = userId;
+			break;
+		case 'followers':
+			query.following = userId;
+			break;
+		default:
+			query.followers = userId;
+			break;
+	}
+
+	console.log('🐧', query);
+
+	const data = await User.find(query)
+		.select('name avatar email username')
+		.limit(limit)
+		.skip((page - 1) * limit)
+		.lean()
+		.exec();
+
+	const total = await User.countDocuments(query);
+	const totalPages = Math.ceil(total / limit);
+	const currentPage = page;
+
+	return res.status(200).json({
+		status: 'success',
+		data: {
+			items: data,
+			total,
+			totalPages,
+			currentPage,
+		},
+	});
+};
+
 module.exports = {
 	getProfile,
 	updateProfile,
@@ -332,5 +403,7 @@ module.exports = {
 	getPreview,
 	readNotify,
 	checkUsernameAvailability,
+	getProfilePhotos,
 	getFollowing,
+	getFollow,
 };

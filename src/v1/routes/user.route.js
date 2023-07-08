@@ -94,4 +94,10 @@ router.get(
 	userController.getFollowing,
 );
 
+router.get(
+	'/:userId/follow',
+	validateParams(schemas.idSchema, 'userId'),
+	userController.getFollow,
+);
+
 module.exports = router;
