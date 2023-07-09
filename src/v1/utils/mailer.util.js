@@ -11,7 +11,7 @@ const sendEmail = async (options) => {
 	});
 
 	const mailOptions = {
-		from: `Nov Social <${process.env.EMAIL_USERNAME}>`,
+		from: `${process.env.APP_NAME} <${process.env.EMAIL_USERNAME}>`,
 		to: options.email,
 		subject: options.subject,
 		text: options.message,
@@ -27,7 +27,7 @@ const generateHTMLWelcomeMail = (recipientName, activeLink) => {
    <div style="max-width: 540px;margin: auto;font-size: 110%;border-radius: 12px;/* border: 1px solid #d7d8d9; */overflow: hidden;">
       <div style="width: 100%; height: 80px; background: #3588f2;">
          <div style="cursor: auto; color: white; font-family: Whitney, Helvetica Neue, Helvetica, Arial, Lucida Grande, sans-serif; font-size: 28px; font-weight: 600; text-align: center; line-height: 80px;">
-            Welcome to Nov Social!
+            Welcome to ${process.env.APP_NAME}!
          </div>
       </div>
       <div style="background: white;padding: 20px;">

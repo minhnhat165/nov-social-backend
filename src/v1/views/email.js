@@ -29,7 +29,7 @@ const emailHeader = `
 								Roboto, Arial, sans-serif;
 						"
 					>
-						Nov Social
+						${process.env.APP_NAME}
 					</h1>
 				</td>
 			</tr>
@@ -59,12 +59,12 @@ const emailFooter = `<table
 						text-align: center;
 					"
 				>
-					This message was produced and distributed by Nov Social,
+					This message was produced and distributed by ${process.env.APP_NAME},
 					Inc., website
 					<a
 						href="https://bjdxkhre.r.us-east-1.awstrack.me/L0/https:%2F%2Fwww.amazon.com%2F/1/0100018595d6e524-a90b3fed-1398-4b8f-9ece-8e2bb455e281-000000/fxvzTsY7O1OAZ8Wl6rO-c9VGex0=303"
 						target="_blank"
-						>Nov social</a
+						>${process.env.APP_NAME}</a
 					>.
 				</td>
 			</tr>
@@ -166,7 +166,7 @@ const generateEmailResetPassword = (code) => `
                   "
                   >
                   <p style="margin: 0 0 15px 0; padding: 0 0 0 0">
-                     Nov social will never email you and ask you to disclose
+                     ${process.env.APP_NAME} will never email you and ask you to disclose
                      or verify your password, credit card, or banking account
                      number.
                   </p>
@@ -228,7 +228,7 @@ const generateEmailVerify = (activeLink) => `
 						</h1>
 						<p style="margin: 0; padding: 0">
 							Thanks for starting the new
-							<span style="color: #2080c6">Nov</span> account
+							<span style="color: #2080c6">${process.env.APP_NAME}</span> account
 							creation process. We want to make sure it's really
 							you. Please click the button below to activate your
 							account. If you don’t want to create an account, you
@@ -286,7 +286,7 @@ const generateEmailVerify = (activeLink) => `
 						"
 					>
 						<p style="margin: 0 0 15px 0; padding: 0 0 0 0">
-                Nov social will never email you and ask you to disclose
+                ${process.env.APP_NAME} will never email you and ask you to disclose
                 or verify your password, credit card, or banking account
                 number.
             </p>
