@@ -68,7 +68,7 @@ const getImagesByFolder = async ({ folder, limit = 9, next_cursor = null }) => {
 		const res = await cloudinary_js_config.search
 			.expression(`folder:${folder}/*`)
 			.max_results(limit)
-			.sort_by('public_id', 'desc')
+			.sort_by('created_at', 'desc')
 			.next_cursor(next_cursor)
 			.execute();
 		return res;
