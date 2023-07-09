@@ -19,6 +19,12 @@ class SocketService {
 				}
 			}
 		});
+
+		socket.on('client.game.tictactoe.join', () => {
+			socket.join('tictactoe');
+			const allRooms = Object.values(gameRoom);
+			socket.emit('server.game.tictactoe.join', allRooms);
+		});
 		socket.on('client.game.room.create', async (room) => {
 			// if number of room > 1000, delete the oldest room
 			if (Object.keys(gameRoom).length > 5) {
