@@ -36,6 +36,16 @@ const createPost = async (post, user) => {
 		{ _id: { $in: allHashtags } },
 		{ $push: { posts: savedPost._id } },
 	);
+	if (photos.length > 0) {
+		const profilePhotos = photos.map((photo) => {
+			return photo.publicId;
+		});
+		await User.findByIdAndUpdate(_id, {
+			$push: {
+				photos: { $each: profilePhotos, $position: 0, $slice: 9 },
+			},
+		});
+	}
 	await savedPost.populate('author', 'avatar name username');
 	if (mentions.length > 0) {
 		notificationService.createNotification({
@@ -134,6 +144,18 @@ const updatePost = async (postId, post, user) => {
 			(photoId) => !newPhotoIds.includes(photoId),
 		);
 		deleteImages(photoIdsRemove);
+		await User.findByIdAndUpdate(_id, {
+			$pull: {
+				photos: { $in: photoIdsRemove },
+			},
+		});
+
+		await User.findByIdAndUpdate(_id, {
+			$push: {
+				photos: { $each: newPhotoIds, $position: 0, $slice: 9 },
+			},
+		});
+
 		dataUpdate.photos = photos;
 	}
 	if (poll || poll === null) {
@@ -186,6 +208,11 @@ const deletePost = async (id, user) => {
 	if (photos.length > 0) {
 		const photoIds = photos.map((photo) => photo.publicId);
 		deleteImages(photoIds);
+		await User.findByIdAndUpdate(user._id.toString(), {
+			$pull: {
+				photos: { $in: photoIds },
+			},
+		});
 	}
 
 	deleteFolder(post._id.toString());
@@ -411,6 +438,7 @@ const convertPostSendToClient = (post, userId) => {
 	newPost.isLiked = likes.some(
 		(like) => like.toString() === userId.toString(),
 	);
+	newPost.likesCount = likes.length;
 	return newPost;
 };
 
@@ -551,3 +579,5 @@ const {
 	ENTITY_TYPES,
 	POST,
 } = require('../configs');
+const User = require('../models/User');
+const userService = require('./user.service');
