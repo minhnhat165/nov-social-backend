@@ -12,7 +12,8 @@ const {
 	generateEmailVerify,
 } = require('../views/email');
 const { getImageWithDimension } = require('../services/cloud.service');
-const { AVATAR_SIZE } = require('../configs');
+const { AVATAR_SIZE, AVATAR_DEFAULT } = require('../configs');
+const { systemPublicIds } = require('../configs/cloudinary.config');
 
 const login = async (req, res, next) => {
 	const { email, password } = req.value.body;
@@ -91,7 +92,24 @@ const checkEmailExists = async (req, res, next) => {
 };
 
 const register = async (req, res, next) => {
-	const { avatar, ...userData } = req.value.body;
+	let { avatar, ...userData } = req.value.body;
+	if (!avatar) {
+		switch (userData?.gender) {
+			case 'male':
+				avatar = AVATAR_DEFAULT.MEN;
+				break;
+			case 'female':
+				avatar = AVATAR_DEFAULT.WOMEN;
+				break;
+			case 'other':
+				avatar = AVATAR_DEFAULT.OTHER;
+				break;
+			default:
+				avatar = AVATAR_DEFAULT.MEN;
+				break;
+		}
+	}
+
 	const newUser = await createUser({
 		...userData,
 		avatar: getImageWithDimension(

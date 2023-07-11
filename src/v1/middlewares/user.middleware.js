@@ -15,10 +15,7 @@ async function getUserFromJwt(req, res, next) {
 	try {
 		const payload = await authService.verifyAccessToken(token);
 		const user = await userService.getUser(payload.id);
-		console.log(
-			'🚀 ~ file: user.middleware.js:16 ~ getUserFromJwt ~ user:',
-			user,
-		);
+
 		req.user = user;
 		// Call next middleware
 		next();

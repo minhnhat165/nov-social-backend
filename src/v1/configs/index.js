@@ -1,3 +1,5 @@
+const { systemPublicIds } = require('./cloudinary.config');
+
 module.exports = {
 	// Client URL
 	CLIENT_URL: process.env.CLIENT_URL,
@@ -77,5 +79,10 @@ module.exports = {
 			POST: 'POST',
 			SHARE: 'SHARE',
 		},
+	},
+	AVATAR_DEFAULT: {
+		MEN: systemPublicIds[0],
+		WOMEN: systemPublicIds[1],
+		OTHER: systemPublicIds[2],
 	},
 };

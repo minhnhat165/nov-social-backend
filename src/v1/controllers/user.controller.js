@@ -372,8 +372,6 @@ const getFollow = async (req, res, next) => {
 			break;
 	}
 
-	console.log('🐧', query);
-
 	const data = await User.find(query)
 		.select('name avatar email username')
 		.limit(limit)

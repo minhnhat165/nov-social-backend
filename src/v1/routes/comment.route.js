@@ -70,5 +70,6 @@ router.get(
 	verifyAccessTokenOptional,
 	CommentController.getChildComments,
 );
+router.get('/:id', verifyAccessTokenOptional, CommentController.getComment);
 
 module.exports = router;

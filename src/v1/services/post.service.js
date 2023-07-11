@@ -470,9 +470,12 @@ const getSavedPostIds = async (userId) => {
 const getPostsByUserId = async (
 	userId,
 	currentUserId,
-	cursor = new Date().toISOString(),
+	cursor = generatePostId(),
 	limit = 10,
 ) => {
+	if (!cursor) {
+		cursor = new Post()._id.toString();
+	}
 	const hiddenPostIds = await getHiddenPostIds(currentUserId);
 	const posts = await Post.find({
 		$or: [
@@ -483,17 +486,16 @@ const getPostsByUserId = async (
 				mentions: userId,
 			},
 		],
-		_id: { $nin: hiddenPostIds },
-		createdAt: { $lt: cursor },
+		_id: { $nin: hiddenPostIds, $lt: cursor },
 	})
-		.sort({ createdAt: -1 })
+		.sort({ _id: -1 })
 		.limit(limit)
 		.populate('author', 'name avatar username')
 		.select('-__v -updatedAt -blockedUsers -allowedUsers')
 		.lean();
 	return {
 		items: await convertPostsSendToClient(posts, currentUserId),
-		endCursor: posts.length > 0 ? posts[posts.length - 1].createdAt : null,
+		endCursor: posts.length > 0 ? posts[posts.length - 1]._id : null,
 		hasNextPage: posts.length === limit,
 	};
 };
@@ -546,6 +548,11 @@ const updatePostCached = async (postId, update) => {
 		'EX',
 		60 * 60 * 24,
 	); // 1 day
+};
+
+const generatePostId = () => {
+	const newPostId = new Post()._id.toString();
+	return newPostId;
 };
 
 const postService = {

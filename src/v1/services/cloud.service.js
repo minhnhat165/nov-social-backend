@@ -1,4 +1,7 @@
-const { cloudinary_js_config } = require('../configs/cloudinary.config');
+const {
+	cloudinary_js_config,
+	systemPublicIds,
+} = require('../configs/cloudinary.config');
 const fs = require('fs');
 
 const uploadImageBuffer = async (file, path) => {
@@ -34,8 +37,8 @@ const getPublicId = (imageURL) => {
 	return imageURL.split('/').slice(7).join('/').split('.')[0];
 };
 const deleteImage = async (publicId) => {
-	console.log('publicId deleted', publicId);
 	if (!publicId) return null;
+	if (systemPublicIds.includes(publicId)) return null;
 	try {
 		return await cloudinary_js_config.uploader.destroy(publicId);
 	} catch (error) {
@@ -45,6 +48,9 @@ const deleteImage = async (publicId) => {
 
 const deleteImages = async (publicIds) => {
 	if (!publicIds) return null;
+	if (publicIds.some((publicId) => systemPublicIds.includes(publicId)))
+		return null;
+
 	try {
 		return await cloudinary_js_config.api.delete_resources(publicIds);
 	} catch (error) {

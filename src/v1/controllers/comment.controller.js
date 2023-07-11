@@ -12,6 +12,25 @@ const createComment = async (req, res) => {
 	});
 };
 
+const getComment = async (req, res) => {
+	const { user } = req;
+	const { id } = req.params;
+	const { comments, numNextComments, comment } =
+		await commentService.getCommentWhitRelative(id);
+	res.status(200).json({
+		status: 'success',
+		comments: commentService.retrieveCommentsSendToClient(
+			comments,
+			user._id.toString(),
+		),
+		comment: commentService.retrieveCommentSendToClient(
+			comment,
+			user._id.toString(),
+		),
+		numNextComments,
+	});
+};
+
 const getChildComments = async (req, res) => {
 	const { id } = req.params;
 	const { limit = 10, page } = req.query;
@@ -115,6 +134,7 @@ const CommentController = {
 	unhidePost,
 	savePost,
 	unSavePost,
+	getComment,
 };
 
 module.exports = CommentController;

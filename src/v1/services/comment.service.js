@@ -34,23 +34,21 @@ const getCommentsByPostId = async (
 const getCommentsByCursor = async ({
 	postId,
 	parentId = null,
-	cursor = null,
+	cursor = '000000000000000000000000',
 	limit = 10,
 }) => {
 	await postService.getPostById(postId);
 	const query = { postId, parentId };
 	if (cursor) {
-		query.createdAt = { $gt: cursor };
+		query._id = { $gt: cursor };
 	}
 	const comments = await Comment.find(query)
-		.sort({ createdAt: 1 })
+		.sort({ _id: 1 })
 		.limit(limit)
 		.populate('author', 'avatar name username');
 	return {
 		comments,
-		endCursor: comments.length
-			? comments[comments.length - 1].createdAt
-			: null,
+		endCursor: comments.length ? comments[comments.length - 1]._id : null,
 		hasMore: comments.length === limit,
 	};
 };
@@ -115,23 +113,30 @@ const createComment = async (comment, authorId) => {
 
 const getCommentWhitRelative = async (commentId) => {
 	const comment = await getCommentById(commentId);
+	let comments = [];
 	const { path } = comment;
 	const { parentIds } = extractPath(path);
 	const rootParentId = parentIds[0];
-	let comments = await Comment.find({
-		// id = root or root include path
-		$or: [{ _id: rootParentId }, { path: new RegExp(`^${path}/?$`) }],
-	})
-		.sort({ createdAt: 1 })
-		.populate('author', 'avatar name username');
+
+	if (rootParentId) {
+		comments = await Comment.find({
+			$or: [{ _id: rootParentId }, { parentId: { $in: parentIds } }],
+		})
+			.sort({ _id: 1 })
+			.populate('author', 'avatar name username');
+	} else {
+		comments = [comment];
+	}
 
 	const numNextComments = await Comment.countDocuments({
+		postId: comment.postId,
 		createdAt: { $gt: comment.createdAt },
 	});
 
 	return {
 		numNextComments,
 		comments: comments,
+		comment: comment,
 	};
 };
 
@@ -388,7 +393,6 @@ const retrieveCommentSendToClient = (comment, userId) => {
 		comment = comment._doc;
 	}
 	const { likes, ...newComment } = comment;
-	console.log(likes);
 	newComment.liked = likes.some(
 		(like) => like.toString() === userId?.toString(),
 	);

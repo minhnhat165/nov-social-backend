@@ -189,21 +189,21 @@ const getUserNotifications = async ({ userId, page = 1, limit = 10 }) => {
 
 const getUserNotificationCursor = async ({
 	userId,
-	cursor = new Date().toISOString(),
+	cursor = new Notification()._id.toString(),
 	limit = 10,
 	isRead = null,
 }) => {
 	const notifications = await UserNotification.find({
 		user: userId,
-		createdAt: { $lt: cursor },
+		_id: { $lt: cursor },
 		...(isRead !== null && { isRead }),
 	})
 		.populate(POPULATE_OPTION)
-		.sort({ createdAt: -1 })
+		.sort({ _id: -1 })
 		.limit(limit);
 	const endCursor =
 		notifications.length > 0
-			? notifications[notifications.length - 1].createdAt
+			? notifications[notifications.length - 1]._id
 			: null;
 
 	return {

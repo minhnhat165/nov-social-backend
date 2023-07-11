@@ -58,18 +58,17 @@ const getPostsByUserId = async (req, res) => {
 
 const getPost = async (req, res) => {
 	const { id } = req.params;
-	const { commentId } = req.query;
 	const { user } = req;
 	let post = await postService.getPost(id, user);
 	post = postService.convertPostSendToClient(post._doc, user._id.toString());
-	if (commentId) {
-		const comments = await commentService.getCommentWhitRelative(commentId);
-		comments.comments = commentService.retrieveCommentsSendToClient(
-			comments.comments,
-			user._id.toString(),
-		);
-		post.comments = comments;
-	}
+	// if (commentId) {
+	// 	const comments = await commentService.getCommentWhitRelative(commentId);
+	// 	comments.comments = commentService.retrieveCommentsSendToClient(
+	// 		comments.comments,
+	// 		user._id.toString(),
+	// 	);
+	// 	post.comments = comments;
+	// }
 
 	res.status(200).json({
 		post,
@@ -140,7 +139,7 @@ const unSavePost = async (req, res) => {
 
 const getPostComments = async (req, res) => {
 	const { id } = req.params;
-	const { limit = 10, cursor } = req.query;
+	const { limit = 10, cursor, commentId } = req.query;
 	const { user } = req;
 	const { comments, endCursor, hasMore } =
 		await commentService.getCommentsByCursor({
@@ -148,7 +147,9 @@ const getPostComments = async (req, res) => {
 			limit: parseInt(limit),
 			cursor,
 			parentId: null,
+			commentId,
 		});
+
 	res.status(200).json({
 		hasMore,
 		endCursor,
