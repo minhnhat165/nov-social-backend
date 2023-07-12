@@ -5,6 +5,7 @@ const { deleteImages, deleteFolder } = require('./cloud.service');
 const redis = require('../databases/init.redis');
 const BlackList = require('../models/BlackList');
 const Bookmark = require('../models/Bookmark');
+const Comment = require('../models/Comment');
 const createPost = async (post, user) => {
 	let {
 		content,
@@ -500,6 +501,30 @@ const getPostsByUserId = async (
 	};
 };
 
+const getUsersLikedPost = async (postId) => {
+	const post = await Post.findById(postId)
+		.select('likes')
+		.populate('likes', 'name avatar username email');
+	return post.likes;
+};
+
+const getUsersCommentedPost = async (postId) => {
+	const comments = await Comment.find({ postId })
+		.select('author')
+		.populate('author', 'name avatar username email');
+	const uniqueUsers = [];
+	comments.forEach((comment) => {
+		if (
+			!uniqueUsers.some(
+				(user) => user._id.toString() === comment.author._id.toString(),
+			)
+		) {
+			uniqueUsers.push(comment.author);
+		}
+	});
+	return uniqueUsers;
+};
+
 // Cache
 const CACHE_POST_PREFIX = 'post';
 
@@ -575,6 +600,8 @@ const postService = {
 	getPost,
 	updateNumComments,
 	getPostsByUserId,
+	getUsersLikedPost,
+	getUsersCommentedPost,
 };
 
 module.exports = postService;

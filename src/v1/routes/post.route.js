@@ -83,6 +83,17 @@ router.get(
 	verifyAccessTokenOptional,
 	PostController.getPostComments,
 );
+router.get(
+	'/:id/users/liked',
+	verifyAccessTokenOptional,
+	PostController.getUsersLikedPost,
+);
+
+router.get(
+	'/:id/users/commented',
+	verifyAccessTokenOptional,
+	PostController.getUsersCommentedPost,
+);
 
 router.get(
 	'/user/:userId',

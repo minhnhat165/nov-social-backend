@@ -160,6 +160,22 @@ const getPostComments = async (req, res) => {
 	});
 };
 
+const getUsersLikedPost = async (req, res) => {
+	const { id } = req.params;
+	const users = await postService.getUsersLikedPost(id);
+	res.status(200).json({
+		items: users,
+	});
+};
+
+const getUsersCommentedPost = async (req, res) => {
+	const { id } = req.params;
+	const users = await postService.getUsersCommentedPost(id);
+	res.status(200).json({
+		items: users,
+	});
+};
+
 const PostController = {
 	createPost,
 	getPosts,
@@ -174,6 +190,8 @@ const PostController = {
 	unSavePost,
 	getPostComments,
 	getPostsByUserId,
+	getUsersLikedPost,
+	getUsersCommentedPost,
 };
 
 module.exports = PostController;
