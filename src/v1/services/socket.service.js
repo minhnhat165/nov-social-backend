@@ -31,6 +31,9 @@ class SocketService {
 				const oldestRoomId = Object.keys(gameRoom)[0];
 				delete gameRoom[oldestRoomId];
 			}
+			room.grid = room.grid = Array(16)
+				.fill(null)
+				.map(() => Array(16).fill(null));
 			gameRoom[room._id] = room;
 			socket.broadcast.emit('server.game.room.create', room);
 		});
@@ -57,22 +60,30 @@ class SocketService {
 			_io.to(roomId).emit('server.game.room.join', room);
 		});
 
-		socket.on('client.game.tictactoe.move', async ({ roomId, grid }) => {
-			const room = gameRoom[roomId];
-			if (!room) return;
-			room.turn = room.players.find(
-				(player) => player._id !== socket.userId,
-			);
-			room.grid = grid;
-			gameRoom[roomId] = room;
-			_io.to(roomId).emit('server.game.tictactoe.move', room);
-		});
+		socket.on(
+			'client.game.tictactoe.move',
+			async ({ roomId, position }) => {
+				const room = gameRoom[roomId];
+				if (!room) return;
+				room.grid[position[0]][position[1]] = room.turn.symbol;
+				room.turn = room.players.find(
+					(player) => player._id !== socket.userId,
+				);
+				gameRoom[roomId] = room;
+				room.lastMove = position;
+				_io.to(roomId).emit('server.game.tictactoe.move', room);
+			},
+		);
 
 		socket.on('client.game.tictactoe.reset', async (roomId) => {
 			const room = gameRoom[roomId];
 			if (!room) return;
 			room.turn =
 				room.players[Math.floor(Math.random() * room.players.length)];
+			room.grid = Array(16)
+				.fill(null)
+				.map(() => Array(16).fill(null));
+			room.lastMove = null;
 			gameRoom[roomId] = room;
 			_io.to(roomId).emit('server.game.tictactoe.reset', room);
 		});
