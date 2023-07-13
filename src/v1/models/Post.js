@@ -2,61 +2,6 @@ const mongoose = require('mongoose');
 const Photo = require('./Photo');
 const { POST } = require('../configs');
 const Schema = mongoose.Schema;
-const PollOptionSchema = new mongoose.Schema(
-	{
-		value: {
-			type: String,
-			required: true,
-		},
-		votes: {
-			type: Number,
-			default: 0,
-		},
-
-		voters: {
-			type: [Schema.Types.ObjectId],
-			ref: 'user',
-		},
-		createdBy: {
-			type: Schema.Types.ObjectId,
-			ref: 'user',
-		},
-	},
-	{ timestamps: true },
-);
-
-const PollSchema = new mongoose.Schema(
-	{
-		options: {
-			type: [PollOptionSchema],
-			required: true,
-		},
-		allowAddNewOptions: {
-			type: Boolean,
-			default: false,
-		},
-
-		allowMultipleVotes: {
-			type: Boolean,
-			default: false,
-		},
-
-		duration: {
-			type: Number,
-			default: null, // 24 hours
-		},
-		status: {
-			type: String,
-			enum: ['open', 'closed'],
-			default: 'open',
-		},
-		timerId: {
-			type: String,
-			default: null,
-		},
-	},
-	{ timestamps: true },
-);
 
 const PostSchema = new mongoose.Schema(
 	{
@@ -70,15 +15,16 @@ const PostSchema = new mongoose.Schema(
 			enum: Object.values(POST.VISIBILITY),
 			default: 'public',
 		},
-		allowedUsers: {
+		allowedList: {
 			type: [Schema.Types.ObjectId],
 			ref: 'user',
 		},
 
-		blockedUsers: {
+		blockedList: {
 			type: [Schema.Types.ObjectId],
 			ref: 'user',
 		},
+
 		content: {
 			type: String,
 		},
@@ -99,8 +45,9 @@ const PostSchema = new mongoose.Schema(
 			ref: 'user',
 		},
 		poll: {
-			type: PollSchema,
+			type: Schema.Types.ObjectId,
 			default: null,
+			ref: 'poll',
 		},
 		numComments: {
 			type: Number,

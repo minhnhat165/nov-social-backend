@@ -115,6 +115,15 @@ class SocketService {
 					.emit('server.game.room.message.send', message);
 			},
 		);
+		// poll
+
+		socket.on('client.poll.join', (pollId) => {
+			socket.join(pollId);
+		});
+
+		socket.on('client.poll.leave', (pollId) => {
+			socket.leave(pollId);
+		});
 	}
 }
 

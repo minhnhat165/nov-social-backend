@@ -19,7 +19,7 @@ const createPost = async (post, user) => {
 	const { _id } = user;
 	const allHashtags = await handleHashtags(hashtagNames);
 
-	const newPoll = await handlePoll(poll, user);
+	const newPoll = poll ? await pollService.createPoll(poll, _id) : null;
 
 	mentions = mentions ? [...new Set(mentions)] : [];
 
@@ -47,6 +47,7 @@ const createPost = async (post, user) => {
 			},
 		});
 	}
+	savedPost.poll = newPoll;
 	await savedPost.populate('author', 'avatar name username');
 	if (mentions.length > 0) {
 		notificationService.createNotification({
@@ -58,7 +59,15 @@ const createPost = async (post, user) => {
 			message: NOTIFICATION_MESSAGES.POST.MENTION,
 		});
 	}
-	cachePost(savedPost);
+
+	timelineService.updateTimelineByPostVisibility(
+		savedPost._id,
+		_id,
+		visibility,
+	);
+
+	savedPost.poll = newPoll;
+
 	return savedPost;
 };
 
@@ -83,19 +92,6 @@ const getPost = async (id, userId) => {
 	}
 	return post;
 };
-
-// const getPostsByUserId = async (userId, page = 0, limit = 10) => {
-// 	const posts = await Post.find({ author: userId })
-// 		.sort({ createdAt: -1 })
-// 		.skip(page * limit)
-// 		.limit(limit)
-// 		.populate('author', 'avatar name username')
-// 		.populate('hashtags', 'name')
-// 		.populate('mentions', 'name username')
-// 		.lean();
-// 	const total = await Post.countDocuments({ author: userId });
-// 	return { posts, total };
-// };
 
 const updatePost = async (postId, post, user) => {
 	let {
@@ -160,8 +156,20 @@ const updatePost = async (postId, post, user) => {
 		dataUpdate.photos = photos;
 	}
 	if (poll || poll === null) {
-		const newPoll = await handlePoll(poll, user);
-		dataUpdate.poll = newPoll;
+		const oldPoll = updatePost?.poll;
+		if (oldPoll && poll === null) {
+			await pollService.deletePoll(oldPoll._id);
+			dataUpdate.poll = null;
+		} else if (oldPoll && poll) {
+			dataUpdate.poll = await pollService.updatePoll(
+				oldPoll._id,
+				poll,
+				_id,
+			);
+		} else if (poll) {
+			const newPoll = await pollService.createPoll(poll, _id);
+			dataUpdate.poll = newPoll;
+		}
 	}
 
 	if (mentions) {
@@ -179,7 +187,12 @@ const updatePost = async (postId, post, user) => {
 		new: true,
 	}).select(Object.keys(dataUpdate).join(' '));
 
-	updatePostCached(postId, updatedPost._doc);
+	updatedPost.poll = dataUpdate.poll;
+
+	if (visibility) {
+		timelineService.updateTimelineByPostVisibility(postId, _id, visibility);
+	}
+
 	return updatedPost;
 };
 
@@ -193,9 +206,6 @@ const updateNumComments = async (postId, numComment) => {
 			},
 		},
 	);
-	updatePostCached(post._id, {
-		numComments: post.numComments + numComment,
-	});
 };
 
 const deletePost = async (id, user) => {
@@ -225,19 +235,16 @@ const deletePost = async (id, user) => {
 		);
 	}
 	await post.remove();
-	deletePostCached(post._id);
 	notificationService.deleteNotificationsByEntityId(post._id);
 	commentService.deleteCommentByPostId(post._id);
+	timelineService.removeFromTimelines(post._id);
 	return true;
 };
 
 const likePost = async (postId, user) => {
 	const { _id } = user;
 	const userId = _id.toString();
-	let post = await getPostCached(postId);
-	if (!post) {
-		post = await getPostById(postId);
-	}
+	const post = await getPostById(postId);
 
 	const { likes } = post;
 	const isLiked = likes.some((like) => like.toString() === userId);
@@ -251,12 +258,6 @@ const likePost = async (postId, user) => {
 		},
 		{ new: true },
 	);
-
-	const newLikes = [...likes, userId];
-	updatePostCached(postId, {
-		likes: newLikes,
-		likesCount: newLikes.length,
-	});
 
 	notificationService.createNotification({
 		sender: userId,
@@ -273,10 +274,7 @@ const likePost = async (postId, user) => {
 const unlikePost = async (postId, user) => {
 	const { _id } = user;
 	const userId = _id.toString();
-	let post = await getPostCached(postId);
-	if (!post) {
-		post = await getPostById(postId);
-	}
+	const post = await getPostById(postId);
 
 	const { likes } = post;
 	const isLiked = likes.some((like) => like.toString() === userId);
@@ -287,10 +285,6 @@ const unlikePost = async (postId, user) => {
 
 	await Post.findByIdAndUpdate(postId, {
 		$pull: { likes: userId },
-	});
-	updatePostCached(postId, {
-		likes: newLikes,
-		likesCount: newLikes.length,
 	});
 
 	notificationService.deleteNotification({
@@ -363,58 +357,16 @@ const handleHashtags = async (hashtagNames) => {
 	return allHashtags;
 };
 
-const handlePoll = async (poll, user) => {
-	if (!poll) return null;
-	const { options } = poll;
-	const newOptions = options.map((option) => {
-		return {
-			value: option.value,
-			votes: 0,
-			voters: [],
-			createdBy: user._id,
-		};
-	});
-	return { ...poll, options: newOptions };
-};
-
 const getPostsByListId = async (listId) => {
-	// Get all post from redis cache
-	const postCached = await redis.mget(
-		listId.map((id) => `${CACHE_POST_PREFIX}:${id}`),
-	);
-
-	// Get all post id not in redis cache
-	const postIdsNotCached = listId.filter((id, index) => !postCached[index]);
-
-	// Get all post not in redis cache from database
-	let postNotCached =
-		postIdsNotCached.length <= 0
-			? []
-			: await getPostsByListIdFromDatabase(postIdsNotCached);
-
-	// Set all post not in redis cache to redis cache
-	cachePosts(postNotCached);
-
-	// Combine all post from redis cache and post from database
-	const posts = [];
-
-	for (let i = 0; i < listId.length; i++) {
-		if (postCached[i]) {
-			posts.push(JSON.parse(postCached[i]));
-			continue;
-		}
-		const postId = listId[i];
-		const post = postNotCached.find(
-			(post) => post._id.toString() === postId,
-		);
-		if (post) posts.push({ ...post._doc, likesCount: post.likes.length });
-	}
+	const posts = await getPostsByListIdFromDatabase(listId);
 	return posts;
 };
 
 const getPostsByListIdFromDatabase = async (listId) => {
 	const posts = await Post.find({ _id: { $in: listId } })
-		.populate('author', 'name avatar username')
+		.sort({ _id: -1 })
+		.populate('author', 'name avatar username email')
+		.populate('poll')
 		.select('-__v -updatedAt -blockedUsers -allowedUsers');
 	return posts;
 };
@@ -427,14 +379,21 @@ const getAllUserPostIds = async (userId) => {
 const convertPostsSendToClient = async (posts, userId) => {
 	const savedPostIds = await getSavedPostIds(userId);
 	return posts.map((post) => {
-		post.isSaved = savedPostIds.some(
+		const isSaved = savedPostIds.some(
 			(savedPostId) => savedPostId.toString() === post._id.toString(),
 		);
+		if (post._doc) {
+			post._doc.isSaved = isSaved;
+		} else {
+			post.isSaved = isSaved;
+		}
+
 		return convertPostSendToClient(post, userId);
 	});
 };
 
 const convertPostSendToClient = (post, userId) => {
+	if (post._doc) post = post._doc;
 	const { likes, ...newPost } = post;
 	newPost.isLiked = likes.some(
 		(like) => like.toString() === userId.toString(),
@@ -473,22 +432,58 @@ const getPostsByUserId = async (
 	currentUserId,
 	cursor = generatePostId(),
 	limit = 10,
+	isMe = false,
 ) => {
 	if (!cursor) {
 		cursor = new Post()._id.toString();
 	}
 	const hiddenPostIds = await getHiddenPostIds(currentUserId);
-	const posts = await Post.find({
-		$or: [
-			{
-				author: userId,
-			},
-			{
-				mentions: userId,
-			},
-		],
-		_id: { $nin: hiddenPostIds, $lt: cursor },
-	})
+	let query = {};
+	if (isMe) {
+		query = {
+			$or: [
+				{
+					author: userId,
+				},
+				{
+					mentions: userId,
+					visibility: {
+						$in: [POST.VISIBILITY.PUBLIC, POST.VISIBILITY.FOLLOWER],
+					},
+				},
+			],
+			_id: { $nin: hiddenPostIds, $lt: cursor },
+		};
+	} else {
+		const { followers } = await User.findById(userId).select('followers');
+		const isFollower = followers.some(
+			(follower) => follower.toString() === currentUserId.toString(),
+		);
+
+		query = {
+			$or: [
+				{
+					author: userId,
+				},
+				{
+					mentions: userId,
+				},
+			],
+			$or: [
+				{
+					visibility: POST.VISIBILITY.PUBLIC,
+				},
+				{
+					visibility: isFollower
+						? POST.VISIBILITY.FOLLOWER
+						: POST.VISIBILITY.PUBLIC,
+				},
+			],
+			_id: { $nin: hiddenPostIds, $lt: cursor },
+		};
+	}
+
+	const posts = await Post.find(query)
 		.sort({ _id: -1 })
 		.limit(limit)
 		.populate('author', 'name avatar username')
@@ -499,6 +494,22 @@ const getPostsByUserId = async (
 		endCursor: posts.length > 0 ? posts[posts.length - 1]._id : null,
 		hasNextPage: posts.length === limit,
 	};
+};
+
+const getPostIdsByFollowId = async (userId) => {
+	const query = {
+		$or: [
+			{
+				author: userId,
+				visibility: {
+					$in: [POST.VISIBILITY.PUBLIC, POST.VISIBILITY.FOLLOWER],
+				},
+			},
+		],
+	};
+	const posts = await Post.find(query).sort({ _id: -1 }).select('_id').lean();
+
+	return posts.map((post) => post._id);
 };
 
 const getUsersLikedPost = async (postId) => {
@@ -525,56 +536,6 @@ const getUsersCommentedPost = async (postId) => {
 	return uniqueUsers;
 };
 
-// Cache
-const CACHE_POST_PREFIX = 'post';
-
-const cachePost = async (post) => {
-	post._doc.likesCount = post.likes.length;
-	redis.set(
-		`${CACHE_POST_PREFIX}:${post._id}`,
-		JSON.stringify(post),
-		'EX',
-		60 * 60 * 24,
-	); // 1 day
-};
-
-const cachePosts = async (posts) => {
-	const pipeline = redis.pipeline();
-	posts.forEach((post) => {
-		post._doc.likesCount = post.likes.length;
-		pipeline.set(
-			`${CACHE_POST_PREFIX}:${post._id}`,
-			JSON.stringify(post),
-			'EX',
-			60 * 60 * 24,
-		); // 1 day
-	});
-	await pipeline.exec();
-};
-
-const getPostCached = async (postId) => {
-	const postCached = await redis.get(`${CACHE_POST_PREFIX}:${postId}`);
-	if (!postCached) return null;
-	return JSON.parse(postCached);
-};
-
-const deletePostCached = async (postId) => {
-	redis.del(`${CACHE_POST_PREFIX}:${postId}`);
-};
-
-const updatePostCached = async (postId, update) => {
-	const postCached = await redis.get(`${CACHE_POST_PREFIX}:${postId}`);
-	if (!postCached) return;
-	const post = JSON.parse(postCached);
-	const newPost = { ...post, ...update };
-	redis.set(
-		`${CACHE_POST_PREFIX}:${postId}`,
-		JSON.stringify(newPost),
-		'EX',
-		60 * 60 * 24,
-	); // 1 day
-};
-
 const generatePostId = () => {
 	const newPostId = new Post()._id.toString();
 	return newPostId;
@@ -595,13 +556,13 @@ const postService = {
 	getHiddenPostIds,
 	savePost,
 	unSavePost,
-	updatePostCached,
 	getPostById,
 	getPost,
 	updateNumComments,
 	getPostsByUserId,
 	getUsersLikedPost,
 	getUsersCommentedPost,
+	getPostIdsByFollowId,
 };
 
 module.exports = postService;
@@ -614,4 +575,6 @@ const {
 	POST,
 } = require('../configs');
 const User = require('../models/User');
-const userService = require('./user.service');
+const pollService = require('./poll.service');
+
+const timelineService = require('./timeline.service');

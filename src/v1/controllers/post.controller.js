@@ -11,11 +11,10 @@ const createPost = async (req, res) => {
 	const { body, user } = req;
 	const post = body;
 	const newPost = await postService.createPost(post, user);
-	timelineService.addToTimelines(
-		[...user.followers.map((id) => id.toString()), user._id.toString()],
-		newPost._id,
-	);
-	userService.addPostIdToUserCache(user._id.toString(), newPost._id);
+	// timelineService.addToTimelines(
+	// 	[...user.followers.map((id) => id.toString()), user._id.toString()],
+	// 	newPost._id,
+	// );
 	res.status(201).json(newPost);
 };
 
@@ -48,6 +47,7 @@ const getPostsByUserId = async (req, res) => {
 		user?._id.toString(),
 		cursor,
 		parseInt(limit),
+		userId === user._id.toString(),
 	);
 
 	res.status(200).json({
@@ -80,7 +80,6 @@ const deletePost = async (req, res) => {
 	const { user } = req;
 	await postService.deletePost(id, user);
 	timelineService.removeFromTimelines(id);
-	userService.removePostIdFromUserCache(user._id.toString(), id);
 	res.status(200).json({ message: 'Post deleted' });
 };
 
@@ -88,6 +87,7 @@ const updatePost = async (req, res) => {
 	const { id } = req.params;
 	const { body: post, user } = req;
 	const updatedPost = await postService.updatePost(id, post, user);
+	console.log(updatedPost);
 	res.status(200).json(updatedPost);
 };
 

@@ -1,7 +1,5 @@
 const createHttpError = require('http-errors');
 const User = require('../models/User');
-const redis = require('../databases/init.redis');
-const Post = require('../models/Post');
 
 // WRITE
 const createUser = async (user) => {
@@ -84,10 +82,7 @@ const followUser = async (userId, followId) => {
 		message: NOTIFICATION_MESSAGES.FOLLOW.FOLLOW,
 	});
 
-	timelineService.addMultipleToTimeline(
-		userId,
-		await getUserPostIds(followId),
-	);
+	timelineService.updateTimelineByFollow(userId, followId, true);
 };
 
 const unFollowUser = async (userId, followId) => {
@@ -107,10 +102,7 @@ const unFollowUser = async (userId, followId) => {
 		type: NOTIFICATION_TYPES.FOLLOW,
 	});
 
-	timelineService.removeMultipleFromTimeline(
-		userId,
-		await getUserPostIds(followId),
-	);
+	timelineService.updateTimelineByFollow(userId, followId, false);
 };
 
 const increaseNumNotifications = async (userId) => {
@@ -178,51 +170,11 @@ const retrieveUserSendToClient = (user, userReqId) => {
 	};
 };
 
-const getUserPostIds = async (userId) => {
-	let postIds = await getUserPostIdsFromCache(userId);
-	if (!postIds) {
-		postIds = await getUserPostIdsFromDB(userId);
-		await redis.hsetobj(`user:${userId}`, 'postIds', postIds);
-	}
-	return postIds;
-};
-
-const getUserPostIdsFromDB = async (userId) => {
-	const posts = await Post.find({ author: userId }).select('_id');
-	return posts.map((post) => post._id);
-};
-
 // HELPERS
 
 const checkUsernameAvailability = async (username) => {
 	const countUser = await User.countDocuments({ username });
 	return countUser === 0;
-};
-
-// cache
-
-const USER_CACHE_PREFIX = 'user';
-
-const getUserPostIdsFromCache = async (userId) => {
-	const key = `${USER_CACHE_PREFIX}:${userId}`;
-	const postIds = await redis.hgetobj(key, 'postIds');
-	if (postIds) return postIds;
-	return null;
-};
-
-const deleteUserPostIdsFromCache = async (userId) => {
-	const key = `${USER_CACHE_PREFIX}:${userId}`;
-	await redis.hdel(key, 'postIds');
-};
-
-const addPostIdToUserCache = async (userId, postId) => {
-	const key = `${USER_CACHE_PREFIX}:${userId}`;
-	await redis.hpusharr(key, 'postIds', postId, true);
-};
-
-const removePostIdFromUserCache = async (userId, postId) => {
-	const key = `${USER_CACHE_PREFIX}:${userId}`;
-	await redis.hpullarr(key, 'postIds', postId, true);
 };
 
 const userService = {
@@ -233,9 +185,6 @@ const userService = {
 	followUser,
 	unFollowUser,
 	retrieveUserSendToClient,
-	deleteUserPostIdsFromCache,
-	addPostIdToUserCache,
-	removePostIdFromUserCache,
 	increaseNumNotifications,
 	resetNumNotifications,
 	checkUsernameAvailability,
@@ -251,3 +200,4 @@ const {
 	ENTITY_TYPES,
 	NOTIFICATION_MESSAGES,
 } = require('../configs');
+const postService = require('./post.service');
