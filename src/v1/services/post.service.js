@@ -281,8 +281,6 @@ const unlikePost = async (postId, user) => {
 
 	if (!isLiked) throw new createHttpError(400, 'Post not liked yet');
 
-	const newLikes = likes.filter((like) => like.toString() !== userId);
-
 	await Post.findByIdAndUpdate(postId, {
 		$pull: { likes: userId },
 	});
@@ -464,19 +462,25 @@ const getPostsByUserId = async (
 			$or: [
 				{
 					author: userId,
+					visibility: {
+						$in: [
+							POST.VISIBILITY.PUBLIC,
+							isFollower
+								? POST.VISIBILITY.FOLLOWER
+								: POST.VISIBILITY.PUBLIC,
+						],
+					},
 				},
 				{
 					mentions: userId,
-				},
-			],
-			$or: [
-				{
-					visibility: POST.VISIBILITY.PUBLIC,
-				},
-				{
-					visibility: isFollower
-						? POST.VISIBILITY.FOLLOWER
-						: POST.VISIBILITY.PUBLIC,
+					visibility: {
+						$in: [
+							POST.VISIBILITY.PUBLIC,
+							isFollower
+								? POST.VISIBILITY.FOLLOWER
+								: POST.VISIBILITY.PUBLIC,
+						],
+					},
 				},
 			],
 			_id: { $nin: hiddenPostIds, $lt: cursor },
@@ -487,7 +491,7 @@ const getPostsByUserId = async (
 		.sort({ _id: -1 })
 		.limit(limit)
 		.populate('author', 'name avatar username')
-		.select('-__v -updatedAt -blockedUsers -allowedUsers')
+		.select('-__v -updatedAt -blockedList -allowedList')
 		.lean();
 	return {
 		items: await convertPostsSendToClient(posts, currentUserId),

@@ -61,14 +61,6 @@ const getPost = async (req, res) => {
 	const { user } = req;
 	let post = await postService.getPost(id, user);
 	post = postService.convertPostSendToClient(post._doc, user._id.toString());
-	// if (commentId) {
-	// 	const comments = await commentService.getCommentWhitRelative(commentId);
-	// 	comments.comments = commentService.retrieveCommentsSendToClient(
-	// 		comments.comments,
-	// 		user._id.toString(),
-	// 	);
-	// 	post.comments = comments;
-	// }
 
 	res.status(200).json({
 		post,
