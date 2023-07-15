@@ -4,7 +4,7 @@ const getBookmarks = async (req, res) => {
 	const { user, query } = req;
 	const { cursor, limit = 10 } = query;
 	const bookmarks = await bookmarkService.getBookmarks(
-		user._id.toString(),
+		user?._id?.toString(),
 		cursor,
 		parseInt(limit),
 	);

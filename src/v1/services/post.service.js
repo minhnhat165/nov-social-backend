@@ -491,6 +491,7 @@ const getPostsByUserId = async (
 		.sort({ _id: -1 })
 		.limit(limit)
 		.populate('author', 'name avatar username')
+		.populate('poll')
 		.select('-__v -updatedAt -blockedList -allowedList')
 		.lean();
 	return {
@@ -531,7 +532,8 @@ const getUsersCommentedPost = async (postId) => {
 	comments.forEach((comment) => {
 		if (
 			!uniqueUsers.some(
-				(user) => user._id.toString() === comment.author._id.toString(),
+				(user) =>
+					user?._id?.toString() === comment?.author?._id?.toString(),
 			)
 		) {
 			uniqueUsers.push(comment.author);

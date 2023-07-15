@@ -41,7 +41,7 @@ const getProfile = async (req, res, next) => {
 		status: 'success',
 		profile: userService.retrieveUserSendToClient(
 			profile,
-			userReq?._id.toString(),
+			userReq?._id?.toString(),
 		),
 	});
 };
@@ -63,7 +63,7 @@ const getOwnProfile = async (req, res, next) => {
 	profile.postsCount = postsCount;
 	return res.status(200).json({
 		success: true,
-		profile: userService.retrieveUserSendToClient(profile, user?._id),
+		profile: userService.retrieveUserSendToClient(profile, user?._id, true),
 	});
 };
 
@@ -122,8 +122,8 @@ const updateProfile = async (req, res, next) => {
 		let isPhotosChanged = false;
 
 		let [newCoverId, newAvatarId] = await Promise.all([
-			cover ? uploadImageBuffer(cover[0], user._id.toString()) : null,
-			avatar ? uploadImageBuffer(avatar[0], user._id.toString()) : null,
+			cover ? uploadImageBuffer(cover[0], user?._id?.toString()) : null,
+			avatar ? uploadImageBuffer(avatar[0], user?._id?.toString()) : null,
 		]);
 
 		if (isUpdateCover) {
@@ -165,6 +165,7 @@ const updateProfile = async (req, res, next) => {
 	}
 
 	Object.assign(dataUpdate, clientRequestData, mediaUpdate);
+
 	const keyUpdateStrings = updateFields.join(' ');
 
 	const userUpdated = await User.findByIdAndUpdate(user._id, dataUpdate, {

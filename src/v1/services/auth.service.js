@@ -39,7 +39,7 @@ const addExistingAccount = async (user, account) => {
 	);
 
 	// Check if the user is trying to link themselves
-	if (user._id.toString() === account._id.toString())
+	if (user._id.toString() === account?._id?.toString())
 		throw createError.BadRequest('You cannot add yourself');
 
 	// Check if the account is already linked
@@ -91,7 +91,7 @@ const removeLinkedAccount = async (user, accountId) => {
 	).select('linkedAccounts');
 
 	// Check if the account is linked
-	if (accountId === user._id.toString())
+	if (accountId === user?._id?.toString())
 		throw createError.Conflict('You cannot remove yourself');
 	// Check if the account is linked
 	if (!user.linkedAccounts.includes(accountId))

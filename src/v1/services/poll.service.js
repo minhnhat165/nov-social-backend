@@ -5,8 +5,12 @@ const getPoll = async (id) => {
 const createPoll = async (poll, userId) => {
 	const { options } = poll;
 	const newOptions = options.map((option) => {
+		const value = option.value.trim();
+		if (!value) {
+			throw new Error('Option value cannot be empty');
+		}
 		return {
-			value: option.value,
+			value,
 			votes: 0,
 			voters: [],
 			createdBy: userId,
@@ -31,9 +35,13 @@ const updatePoll = async (pollId, data, userId) => {
 		if (
 			poll.options.find((o) => o._id.toString() === option._id.toString())
 		) {
+			const value = option.value.trim();
+			if (!value) {
+				throw new Error('Option value cannot be empty');
+			}
 			return {
 				...option,
-				value: option.value,
+				value,
 			};
 		}
 		return {

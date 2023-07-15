@@ -7,7 +7,7 @@ const getTimeLine = async (req, res) => {
 
 	const { posts, endCursor, hasNextPage } = await timelineService.getTimeLine(
 		{
-			userId: user._id.toString(),
+			userId: user?._id?.toString(),
 			cursor: parseInt(cursor),
 			limit: parseInt(limit),
 		},
@@ -17,7 +17,7 @@ const getTimeLine = async (req, res) => {
 		data: {
 			items: await postService.convertPostsSendToClient(
 				posts,
-				user._id.toString(),
+				user?._id?.toString(),
 			),
 			endCursor,
 			hasNextPage,

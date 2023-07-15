@@ -58,7 +58,7 @@ const searchByField = async ({ field, value, limit, options = {} }) => {
 };
 
 const followUser = async (userId, followId) => {
-	if (userId.toString() === followId.toString()) {
+	if (userId?.toString() === followId?.toString()) {
 		throw createHttpError(400, 'You cannot follow yourself');
 	}
 
@@ -147,7 +147,7 @@ const getFollowing = async (userId, page, limit) => {
 	};
 };
 
-const retrieveUserSendToClient = (user, userReqId) => {
+const retrieveUserSendToClient = (user, userReqId, isShowProfilePrivate) => {
 	const {
 		followers,
 		following,
@@ -160,12 +160,15 @@ const retrieveUserSendToClient = (user, userReqId) => {
 		status,
 		...restUser
 	} = user;
+	if (isShowProfilePrivate) {
+		restUser.profilePrivate = profilePrivate;
+	}
 	return {
 		...restUser,
 		followingCount: following.length,
 		followersCount: followers.length,
 		followed: followers.some(
-			(follower) => follower.toString() === userReqId.toString(),
+			(follower) => follower?.toString() === userReqId?.toString(),
 		),
 	};
 };

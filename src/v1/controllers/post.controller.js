@@ -44,10 +44,10 @@ const getPostsByUserId = async (req, res) => {
 	const { user } = req;
 	let data = await postService.getPostsByUserId(
 		userId,
-		user?._id.toString(),
+		user?._id?.toString(),
 		cursor,
 		parseInt(limit),
-		userId === user._id.toString(),
+		userId === user?._id?.toString(),
 	);
 
 	res.status(200).json({
@@ -60,7 +60,10 @@ const getPost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
 	let post = await postService.getPost(id, user);
-	post = postService.convertPostSendToClient(post._doc, user._id.toString());
+	post = postService.convertPostSendToClient(
+		post._doc,
+		user?._id?.toString(),
+	);
 
 	res.status(200).json({
 		post,
@@ -102,30 +105,30 @@ const unlikePost = async (req, res) => {
 const hidePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.hidePost(id, user._id.toString());
-	timelineService.removeFromTimeline(user._id.toString(), id);
+	await postService.hidePost(id, user?._id?.toString());
+	timelineService.removeFromTimeline(user?._id?.toString(), id);
 	res.status(200).json({ status: 'success' });
 };
 
 const unhidePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.unhidePost(id, user._id.toString());
-	timelineService.addToTimeline(user._id.toString(), id);
+	await postService.unhidePost(id, user?._id?.toString());
+	timelineService.addToTimeline(user?._id?.toString(), id);
 	res.status(200).json({ status: 'success' });
 };
 
 const savePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.savePost(id, user._id.toString());
+	await postService.savePost(id, user?._id?.toString());
 	res.status(200).json({ status: 'success' });
 };
 
 const unSavePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.unSavePost(id, user._id.toString());
+	await postService.unSavePost(id, user?._id?.toString());
 	res.status(200).json({ status: 'success' });
 };
 

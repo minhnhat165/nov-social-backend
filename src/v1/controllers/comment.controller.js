@@ -21,11 +21,11 @@ const getComment = async (req, res) => {
 		status: 'success',
 		comments: commentService.retrieveCommentsSendToClient(
 			comments,
-			user._id.toString(),
+			user?._id?.toString(),
 		),
 		comment: commentService.retrieveCommentSendToClient(
 			comment,
-			user._id.toString(),
+			user?._id?.toString(),
 		),
 		numNextComments,
 	});
@@ -69,7 +69,7 @@ const deleteComment = async (req, res) => {
 	const { user } = req;
 	const { numCommentsDeleted } = await commentService.deleteComment(
 		id,
-		user._id.toString(),
+		user?._id?.toString(),
 	);
 	res.status(200).json({
 		status: 'ok',
@@ -80,7 +80,7 @@ const deleteComment = async (req, res) => {
 const likeComment = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await commentService.likeComment(id, user._id.toString());
+	await commentService.likeComment(id, user?._id?.toString());
 	res.status(200).json({
 		status: 'success',
 	});
@@ -89,37 +89,37 @@ const likeComment = async (req, res) => {
 const unlikeComment = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await commentService.unlikeComment(id, user._id.toString());
+	await commentService.unlikeComment(id, user?._id?.toString());
 	res.status(200).json({ status: 'success' });
 };
 
 const hidePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.hidePost(id, user._id.toString());
-	timelineService.removeFromTimeline(user._id.toString(), id);
+	await postService.hidePost(id, user?._id?.toString());
+	timelineService.removeFromTimeline(user?._id?.toString(), id);
 	res.status(200).json({ status: 'success' });
 };
 
 const unhidePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.unhidePost(id, user._id.toString());
-	timelineService.addToTimeline(user._id.toString(), id);
+	await postService.unhidePost(id, user?._id?.toString());
+	timelineService.addToTimeline(user?._id?.toString(), id);
 	res.status(200).json({ status: 'success' });
 };
 
 const savePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.savePost(id, user._id.toString());
+	await postService.savePost(id, user?._id?.toString());
 	res.status(200).json({ status: 'success' });
 };
 
 const unSavePost = async (req, res) => {
 	const { id } = req.params;
 	const { user } = req;
-	await postService.unSavePost(id, user._id.toString());
+	await postService.unSavePost(id, user?._id?.toString());
 	res.status(200).json({ status: 'success' });
 };
 

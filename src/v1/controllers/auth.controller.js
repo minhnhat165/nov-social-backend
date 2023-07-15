@@ -61,7 +61,7 @@ const removeLinkedAccount = async (req, res, next) => {
 const switchAccount = async (req, res, next) => {
 	const { user, params } = req;
 	const { userId: accountId } = params;
-	if (user._id.toString() === accountId)
+	if (user?._id?.toString() === accountId)
 		throw createError.Conflict('You cannot switch to yourself');
 	const userSwitch = await User.findOne({
 		_id: accountId,

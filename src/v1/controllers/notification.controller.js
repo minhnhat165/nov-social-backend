@@ -20,7 +20,7 @@ const getNotifications = async (req, res) => {
 	const { limit, cursor, isRead = null } = req.query;
 
 	const pageData = await notificationService.getUserNotificationCursor({
-		userId: user._id.toString(),
+		userId: user?._id?.toString(),
 		limit: parseInt(limit),
 		cursor,
 		isRead,

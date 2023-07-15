@@ -145,7 +145,7 @@ const updateComment = async (commentId, data, authorId) => {
 	let { content, photos, hashtags: hashtagNames, mentions } = data;
 	let dataUpdate = {};
 	const commentUpdate = await getCommentById(commentId);
-	if (commentUpdate.author._id.toString() !== authorId.toString())
+	if (commentUpdate.author?._id?.toString() !== authorId.toString())
 		throw new createHttpError(403, 'Unauthorized');
 
 	if (hashtagNames) {
