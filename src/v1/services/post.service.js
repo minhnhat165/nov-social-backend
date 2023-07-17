@@ -81,9 +81,10 @@ const getPostById = async (id) => {
 };
 
 const getPostByIdWithCredential = async (id, userId) => {
-	const post = await Post.findById(id);
+	const post = await getPostById(id);
 
-	const { author, visibility } = post;
+	const author = post.author;
+	const visibility = post.visibility;
 	if (
 		author._id.toString() === userId ||
 		visibility === POST.VISIBILITY.PUBLIC
@@ -92,7 +93,7 @@ const getPostByIdWithCredential = async (id, userId) => {
 	}
 
 	if (visibility === POST.VISIBILITY.FOLLOWER) {
-		const isFollowed = author.followers.includes(userId);
+		const isFollowed = author?.followers?.includes(userId);
 		if (isFollowed) return post;
 		throw new createHttpError(404, 'Post not found');
 	}
