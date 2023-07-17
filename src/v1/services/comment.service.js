@@ -75,7 +75,7 @@ const createComment = async (comment, authorId) => {
 		postId,
 		parentId = null,
 	} = comment;
-	const post = await postService.getPostById(postId);
+	const post = await postService.getPostByIdWithCredential(postId, authorId);
 
 	let path = post._id.toString();
 

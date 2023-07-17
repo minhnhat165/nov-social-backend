@@ -48,6 +48,7 @@ const CommentSchema = new mongoose.Schema(
 	{ timestamps: true },
 );
 CommentSchema.index({ postId: 1 });
+CommentSchema.index({ path: 1 });
 CommentSchema.index({ postId: 1, parentId: 1 });
 
 const Comment = mongoose.model('comment', CommentSchema);

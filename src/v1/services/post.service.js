@@ -73,23 +73,34 @@ const createPost = async (post, user) => {
 
 const getPostById = async (id) => {
 	const post = await Post.findById(id)
-		.populate('author', 'avatar name username')
+		.populate('author', 'avatar name username email followers')
 		.populate('hashtags', 'name')
 		.populate('mentions', 'name username');
 	if (!post) throw new createHttpError(404, 'Post not found');
 	return post;
 };
 
-const getPost = async (id, userId) => {
-	const post = await getPostById(id);
+const getPostByIdWithCredential = async (id, userId) => {
+	const post = await Post.findById(id);
 
 	const { author, visibility } = post;
 	if (
-		visibility === POST.VISIBILITY.PRIVATE &&
-		author._id.toString() !== userId
+		author._id.toString() === userId ||
+		visibility === POST.VISIBILITY.PUBLIC
 	) {
-		throw new createHttpError(403, 'Unauthorized');
+		return post;
 	}
+
+	if (visibility === POST.VISIBILITY.FOLLOWER) {
+		const isFollowed = author.followers.includes(userId);
+		if (isFollowed) return post;
+		throw new createHttpError(404, 'Post not found');
+	}
+	throw new createHttpError(404, 'Post not found');
+};
+
+const getPost = async (id, userId) => {
+	const post = await getPostByIdWithCredential(id, userId);
 	return post;
 };
 
@@ -392,11 +403,14 @@ const convertPostsSendToClient = async (posts, userId) => {
 
 const convertPostSendToClient = (post, userId) => {
 	if (post._doc) post = post._doc;
-	const { likes, ...newPost } = post;
+	let { likes, author, ...newPost } = post;
+	if (author._doc) author = author._doc;
+	const { followers, following, ...newAuthor } = author;
 	newPost.isLiked = likes.some(
 		(like) => like.toString() === userId.toString(),
 	);
 	newPost.likesCount = likes.length;
+	newPost.author = newAuthor;
 	return newPost;
 };
 
@@ -569,6 +583,7 @@ const postService = {
 	getUsersLikedPost,
 	getUsersCommentedPost,
 	getPostIdsByFollowId,
+	getPostByIdWithCredential,
 };
 
 module.exports = postService;
