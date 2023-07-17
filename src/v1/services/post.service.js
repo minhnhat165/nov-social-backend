@@ -514,6 +514,48 @@ const getPostsByUserId = async (
 		hasNextPage: posts.length === limit,
 	};
 };
+const searchPosts = async ({
+	userId,
+	cursor = generatePostId(),
+	limit = 10,
+	q = '',
+}) => {
+	if (!cursor) {
+		cursor = new Post()._id.toString();
+	}
+	const hiddenPostIds = await getHiddenPostIds(userId);
+	const hashTagIds = await hashtagService.findHashtagIdsByQuery(q);
+	const { following = [] } = await User.findById(userId).select('following');
+	let query = {
+		hashtags: { $in: hashTagIds },
+		_id: { $nin: hiddenPostIds, $lt: cursor },
+		$or: [
+			{
+				author: userId,
+			},
+			{
+				visibility: POST.VISIBILITY.PUBLIC,
+			},
+			{
+				visibility: POST.VISIBILITY.FOLLOWER,
+				author: { $in: following },
+			},
+		],
+	};
+
+	const posts = await Post.find(query)
+		.sort({ _id: -1 })
+		.limit(limit)
+		.populate('author', 'name avatar username')
+		.populate('poll')
+		.select('-__v -updatedAt -blockedList -allowedList')
+		.lean();
+	return {
+		items: await convertPostsSendToClient(posts, userId),
+		endCursor: posts.length > 0 ? posts[posts.length - 1]._id : null,
+		hasNextPage: posts.length === limit,
+	};
+};
 
 const getPostIdsByFollowId = async (userId) => {
 	const query = {
@@ -584,6 +626,7 @@ const postService = {
 	getUsersCommentedPost,
 	getPostIdsByFollowId,
 	getPostByIdWithCredential,
+	searchPosts,
 };
 
 module.exports = postService;
@@ -599,3 +642,4 @@ const User = require('../models/User');
 const pollService = require('./poll.service');
 
 const timelineService = require('./timeline.service');
+const hashtagService = require('./hashtag.service');

@@ -19,23 +19,16 @@ const createPost = async (req, res) => {
 };
 
 const getPosts = async (req, res) => {
-	const { lastCreatedAt, limit = 10 } = req.query;
+	const { q } = req.query;
 	const { user } = req;
-
-	let posts = await client.get('posts');
-	if (posts) {
-		console.log('using redis');
-		return res.status(200).json(JSON.parse(posts));
-	}
-	const { following } = await User.findById(user._id).select('following');
-	posts = await Post.find({
-		author: { $in: [...following, user._id] },
-	}).populate('author', 'avatar name');
-
-	// set redis
-	await redis.set('posts', JSON.stringify(posts), 'EX', 60); // 10s
-
-	res.status(200).json(posts);
+	const data = await postService.searchPosts({
+		q,
+		userId: user?._id?.toString(),
+	});
+	res.status(200).json({
+		status: 'success',
+		data,
+	});
 };
 
 const getPostsByUserId = async (req, res) => {
@@ -171,6 +164,18 @@ const getUsersCommentedPost = async (req, res) => {
 	});
 };
 
+const searchPosts = async (req, res) => {
+	const { q } = req.query;
+	const { user } = req;
+	const posts = await postService.searchPosts({
+		q,
+		userId: user?._id?.toString(),
+	});
+	res.status(200).json({
+		items: posts,
+	});
+};
+
 const PostController = {
 	createPost,
 	getPosts,
@@ -187,6 +192,7 @@ const PostController = {
 	getPostsByUserId,
 	getUsersLikedPost,
 	getUsersCommentedPost,
+	searchPosts,
 };
 
 module.exports = PostController;

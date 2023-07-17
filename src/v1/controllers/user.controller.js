@@ -238,15 +238,16 @@ const getProfilePhotos = async (req, res, next) => {
 };
 
 const searchUser = async (req, res, next) => {
-	const { q, page, limit } = req.query;
+	const { q, page = 1, limit = 10 } = req.query;
 	const users = await User.find({
 		$or: [
 			{ username: { $regex: q, $options: 'i' } },
 			{ name: { $regex: q, $options: 'i' } },
 		],
 	})
-		.select('username name avatarId')
+		.select('username name avatarId coverId')
 		.limit(limit * 1)
+		.sort({ name: 1 })
 		.skip((page - 1) * limit)
 		.lean()
 		.exec();
@@ -259,8 +260,10 @@ const searchUser = async (req, res, next) => {
 	return res.status(200).json({
 		status: 'success',
 		data: {
-			users,
-			count,
+			items: users,
+			total: count,
+			currentPage: page,
+			totalPage: Math.ceil(count / limit),
 		},
 	});
 };
