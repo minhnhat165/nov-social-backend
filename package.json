@@ -11,6 +11,9 @@
 		"test": "echo \"Error: no test specified\" && exit 1",
 		"dev": "nodemon server.js"
 	},
+	"engines": {
+		"node": ">=14 <15"
+	},
 	"keywords": [],
 	"author": "MinhNhat165<nguyenminhnhat301101@gmail.com>",
 	"license": "ISC",
