@@ -12,7 +12,7 @@
 		"dev": "nodemon server.js"
 	},
 	"engines": {
-		"node": ">=14 <15"
+		"node": "^14 || ^18"
 	},
 	"keywords": [],
 	"author": "MinhNhat165<nguyenminhnhat301101@gmail.com>",
