@@ -5,7 +5,6 @@ const User = require('../models/User');
 const commentService = require('../services/comment.service');
 const postService = require('../services/post.service');
 const timelineService = require('../services/timeline.service');
-const userService = require('../services/user.service');
 
 const createPost = async (req, res) => {
 	const { body, user } = req;
@@ -34,7 +33,7 @@ const getPosts = async (req, res) => {
 const getPostsByUserId = async (req, res) => {
 	const { userId } = req.params;
 	const { cursor, limit = 10 } = req.query;
-	const { user } = req;
+	let { user } = req;
 	let data = await postService.getPostsByUserId(
 		userId,
 		user?._id?.toString(),

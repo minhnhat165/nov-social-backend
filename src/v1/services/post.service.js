@@ -408,7 +408,7 @@ const convertPostSendToClient = (post, userId) => {
 	if (author._doc) author = author._doc;
 	const { followers, following, ...newAuthor } = author;
 	newPost.isLiked = likes.some(
-		(like) => like.toString() === userId.toString(),
+		(like) => like.toString() === userId?.toString(),
 	);
 	newPost.likesCount = likes.length;
 	newPost.author = newAuthor;
@@ -470,7 +470,7 @@ const getPostsByUserId = async (
 	} else {
 		const { followers } = await User.findById(userId).select('followers');
 		const isFollower = followers.some(
-			(follower) => follower.toString() === currentUserId.toString(),
+			(follower) => follower.toString() === currentUserId?.toString(),
 		);
 
 		query = {
